@@ -1,0 +1,374 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --stiga-blue: #002136;
+    --stiga-orange: #FFAA00;
+    --stiga-orange-hover: #E69900;
+    --stiga-dark: #1a1a1a;
+    --stiga-gray: #f5f5f5;
+    --border-radius: 12px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* HEADER */
+header {
+    background: var(--stiga-blue);
+    color: white;
+    padding: 20px 24px;
+    text-align: center;
+}
+
+header .logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+header .stiga-logo {
+    height: 50px;
+    width: auto;
+}
+
+header .logo-text {
+    text-align: left;
+}
+
+header h1 {
+    font-size: 26px;
+    margin: 0;
+    font-weight: 700;
+}
+
+header p {
+    opacity: 0.9;
+    font-size: 15px;
+    margin: 4px 0 0 0;
+}
+
+/* CHAT CONTAINER */
+.chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* MESSAGES AREA */
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    background: var(--stiga-gray);
+}
+
+.message {
+    margin-bottom: 20px;
+    display: flex;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.message-content {
+    max-width: 80%;
+    padding: 16px 20px;
+    border-radius: var(--border-radius);
+    line-height: 1.6;
+}
+
+.message-content p {
+    margin-bottom: 12px;
+}
+
+.message-content ul {
+    margin: 12px 0;
+    padding-left: 20px;
+}
+
+.message-content ul li {
+    margin-bottom: 6px;
+}
+
+.user-message {
+    justify-content: flex-end;
+}
+
+.user-message .message-content {
+    background: var(--stiga-dark);
+    color: white;
+}
+
+.assistant-message .message-content {
+    background: white;
+    box-shadow: var(--shadow);
+}
+
+/* PRODUCT CARDS CON IMMAGINI */
+.products-section {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 2px solid #e0e0e0;
+}
+
+.products-section h4 {
+    display: none;
+}
+
+.product-card {
+    background: white;
+    border: 2px solid var(--stiga-blue);
+    border-radius: 12px;
+    margin: 16px 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: row;
+}
+
+.product-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,33,54,0.25);
+    border-color: #001428;
+}
+
+.product-image {
+    flex: 0 0 260px;
+    min-height: 180px;
+    max-height: 180px;
+    overflow: hidden;
+    background: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.product-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 10px;
+}
+
+.product-info {
+    flex: 1;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.product-card h3 {
+    color: var(--stiga-blue);
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.product-card .product-category {
+    color: #888;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+.product-card .product-description {
+    color: #444;
+    line-height: 1.7;
+    margin: 10px 0;
+    font-size: 14px;
+    flex: 1;
+}
+
+.product-card .product-price {
+    font-weight: 700;
+    color: var(--stiga-blue);
+    font-size: 22px;
+    margin: 14px 0 12px 0;
+}
+
+.product-card .product-link {
+    display: inline-block;
+    align-self: flex-start;
+    padding: 10px 20px;
+    background: var(--stiga-orange);
+    color: white;
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: 6px;
+    transition: background 0.2s;
+    font-size: 14px;
+}
+
+.product-card .product-link:hover {
+    background: var(--stiga-orange-hover);
+    text-decoration: none;
+}
+
+/* Responsive: su mobile stack verticale */
+@media (max-width: 768px) {
+    .product-card {
+        flex-direction: column;
+    }
+    
+    .product-image {
+        flex: 0 0 auto;
+        height: 180px;
+        width: 100%;
+    }
+}
+
+/* INPUT AREA */
+.chat-input-container {
+    padding: 20px;
+    background: white;
+    border-top: 1px solid #eee;
+}
+
+#chat-form {
+    display: flex;
+    gap: 12px;
+}
+
+#user-input {
+    flex: 1;
+    padding: 14px 18px;
+    border: 2px solid #eee;
+    border-radius: var(--border-radius);
+    font-size: 16px;
+    transition: border-color 0.2s;
+}
+
+#user-input:focus {
+    outline: none;
+    border-color: var(--stiga-orange);
+}
+
+#send-button {
+    padding: 14px 28px;
+    background: var(--stiga-orange);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#send-button:hover {
+    background: var(--stiga-orange-hover);
+}
+
+#send-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* TYPING INDICATOR */
+.typing-indicator {
+    display: inline-block;
+}
+
+.typing-indicator span {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--stiga-orange);
+    margin: 0 2px;
+    animation: typing 1.4s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.7; }
+    30% { transform: translateY(-10px); opacity: 1; }
+}
+
+/* Miglior formattazione testo assistente */
+.assistant-message .message-content {
+    line-height: 1.8;
+}
+
+.assistant-message .message-content p {
+    margin-bottom: 20px;
+}
+
+.assistant-message .message-content p:last-child {
+    margin-bottom: 0;
+}
+
+.assistant-message .message-content strong {
+    color: var(--stiga-blue);
+    font-weight: 700;
+    font-size: 1.05em;
+}
+
+.assistant-message .message-content ul {
+    margin: 20px 0;
+    padding-left: 0;
+    list-style: none;
+}
+
+.assistant-message .message-content ul li {
+    margin-bottom: 14px;
+    padding-left: 28px;
+    position: relative;
+    line-height: 1.8;
+}
+
+.assistant-message .message-content ul li:before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: var(--stiga-orange);
+    font-weight: bold;
+    font-size: 1.4em;
+}
+
+.assistant-message .message-content br {
+    content: "";
+    display: block;
+    margin: 10px 0;
+}
+
+.assistant-message .message-content em {
+    font-style: italic;
+    color: #555;
+}

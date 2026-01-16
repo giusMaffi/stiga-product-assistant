@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIGA Product Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <header>
+            <div class="logo">
+                <img src="{{ url_for('static', filename='images/stiga-logo.svg') }}" alt="STIGA" class="stiga-logo">
+                <div class="logo-text">
+                    <h1>Product Assistant</h1>
+                    <p>Il tuo esperto per il giardinaggio</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- CHAT CONTAINER -->
+        <div class="chat-container">
+            <!-- MESSAGES AREA -->
+            <div id="chat-messages" class="chat-messages">
+                <!-- Welcome message -->
+                <div class="message assistant-message">
+                    <div class="message-content">
+                        <p>Ciao! 👋 Sono qui per aiutarti a trovare il prodotto STIGA perfetto per il tuo giardino.</p>
+                        <p>Dimmi di cosa hai bisogno! Ad esempio:</p>
+                        <ul>
+                            <li>"Cerco un robot tagliaerba per 500 m²"</li>
+                            <li>"Ho bisogno di un trattorino elettrico"</li>
+                            <li>"Quale decespugliatore mi consigli?"</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INPUT AREA -->
+            <div class="chat-input-container">
+                <form id="chat-form">
+                    <input 
+                        type="text" 
+                        id="user-input" 
+                        placeholder="Scrivi qui la tua domanda..." 
+                        autocomplete="off"
+                    >
+                    <button type="submit" id="send-button">
+                        Invia →
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>
