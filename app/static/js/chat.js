@@ -99,50 +99,6 @@ function removeTypingIndicator() {
     }
 }
 
-// Formatta tabella comparativa
-function formatComparisonTable(comparatorData) {
-    if (!comparatorData || !comparatorData.prodotti) return '';
-    
-    const prodotti = comparatorData.prodotti;
-    const attributi = comparatorData.attributi || [];
-    const consiglio = comparatorData.consiglio || '';
-    
-    let html = '<div class="comparison-container">';
-    
-    // Tabella
-    html += '<table class="comparison-table">';
-    
-    // Header con nomi prodotti
-    html += '<thead><tr>';
-    html += '<th>Caratteristica</th>';
-    prodotti.forEach(p => {
-        html += `<th>${p}</th>`;
-    });
-    html += '</tr></thead>';
-    
-    // Righe attributi
-    html += '<tbody>';
-    attributi.forEach(attr => {
-        html += '<tr>';
-        html += `<td>${attr.nome}</td>`;
-        attr.valori.forEach((val, idx) => {
-            const isWinner = attr.migliore === idx;
-            const cellClass = isWinner ? 'winner-cell' : '';
-            html += `<td class="${cellClass}">${val}</td>`;
-        });
-        html += '</tr>';
-    });
-    html += '</tbody></table>';
-    
-    // Verdetto finale
-    if (consiglio) {
-        html += `<div class="comparison-verdict"><strong>💡 Il mio consiglio:</strong> ${consiglio}</div>`;
-    }
-    
-    html += '</div>';
-    return html;
-}
-
 // Formatta prodotti come card HTML con immagini
 function formatProductCards(products) {
     if (!products || products.length === 0) return '';
@@ -231,20 +187,6 @@ chatForm.addEventListener('submit', async (e) => {
         // Aggiungi risposta assistente (solo testo, formattato con markdown)
         addMessage(data.response, false);
         
-        // Se c'è un comparatore, mostralo
-        if (data.comparator) {
-            const compDiv = document.createElement('div');
-            compDiv.className = 'message assistant-message';
-            
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.innerHTML = formatComparisonTable(data.comparator);
-            
-            compDiv.appendChild(contentDiv);
-            chatMessages.appendChild(compDiv);
-            scrollToBottom();
-        }
-        
         // Aggiungi card prodotti SEPARATAMENTE come HTML grezzo
         if (data.products && data.products.length > 0) {
             const productsDiv = document.createElement('div');
@@ -252,7 +194,7 @@ chatForm.addEventListener('submit', async (e) => {
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
-            contentDiv.innerHTML = formatProductCards(data.products);
+            contentDiv.innerHTML = formatProductCards(data.products);  // HTML grezzo, non passa da formatMarkdown
             
             productsDiv.appendChild(contentDiv);
             chatMessages.appendChild(productsDiv);
