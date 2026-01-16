@@ -201,7 +201,7 @@ def parse_claude_response(response_text: str) -> tuple:
     Parsea risposta Claude nel formato XML
     
     Returns:
-        (testo_risposta, lista_id_prodotti)
+        (testo_risposta, lista_id_prodotti, comparator_data)
     """
     try:
         # Estrai testo risposta
@@ -219,11 +219,23 @@ def parse_claude_response(response_text: str) -> tuple:
         else:
             product_ids = []
         
-        return text, product_ids
+        # Estrai dati comparatore (se presenti)
+        comparator_data = None
+        comparator_match = re.search(r'<comparatore>(.*?)</comparatore>', response_text, re.DOTALL)
+        if comparator_match:
+            try:
+                comparator_json = comparator_match.group(1).strip()
+                comparator_data = json.loads(comparator_json)
+                print(f"🔄 Comparatore trovato: {len(comparator_data.get('attributi', []))} attributi")
+            except json.JSONDecodeError as je:
+                print(f"⚠️ Errore parsing JSON comparatore: {je}")
+                comparator_data = None
+        
+        return text, product_ids, comparator_data
         
     except Exception as e:
         print(f"⚠️ Errore parsing risposta Claude: {e}")
-        return response_text, []
+        return response_text, [], None
 
 
 def clean_product_description(product: dict) -> str:
@@ -330,8 +342,8 @@ def chat():
             products_context=products_context
         )
         
-        # 9. Parsea risposta per estrarre testo e IDs prodotti
-        response_text, selected_product_ids = parse_claude_response(raw_response)
+        # 9. Parsea risposta per estrarre testo, IDs prodotti e comparatore
+        response_text, selected_product_ids, comparator_data = parse_claude_response(raw_response)
         
         print(f"💬 Risposta Claude: {response_text[:100]}...")
         print(f"🏷️  Prodotti selezionati da Claude: {selected_product_ids}")
@@ -402,7 +414,8 @@ def chat():
         
         return jsonify({
             'response': response_text,
-            'products': products_data
+            'products': products_data,
+            'comparator': comparator_data
         })
         
     except Exception as e:
