@@ -82,7 +82,28 @@ header p {
     flex: 1;
     overflow-y: auto;
     padding: 24px;
-    background: var(--stiga-gray);
+    background-image: url('/static/images/stiga.webp');
+    background-size: cover;
+    background-position: center;
+    background-attachment: local;
+    position: relative;
+}
+
+.chat-messages::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.80);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.chat-messages > * {
+    position: relative;
+    z-index: 1;
 }
 
 .message {
