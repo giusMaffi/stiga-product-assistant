@@ -1,6 +1,6 @@
 """
 Flask App - Stiga Product Assistant
-Production-Ready con Query Enrichment Hybrid + Fix Descrizioni
+Production-Ready con Query Enrichment Hybrid + Fix Descrizioni + Comparatore
 """
 from flask import Flask, render_template, request, jsonify, Response
 from flask_cors import CORS
@@ -201,7 +201,7 @@ def parse_claude_response(response_text: str) -> tuple:
     Parsea risposta Claude nel formato XML
     
     Returns:
-        (testo_risposta, lista_id_prodotti)
+        (testo_risposta, lista_id_prodotti, comparator_data)
     """
     try:
         # Estrai testo risposta
@@ -219,11 +219,23 @@ def parse_claude_response(response_text: str) -> tuple:
         else:
             product_ids = []
         
-        return text, product_ids
+        # Estrai dati comparatore (se presenti)
+        comparator_data = None
+        comparator_match = re.search(r'<comparatore>(.*?)</comparatore>', response_text, re.DOTALL)
+        if comparator_match:
+            try:
+                comparator_json = comparator_match.group(1).strip()
+                comparator_data = json.loads(comparator_json)
+                print(f"🔄 Comparatore trovato: {len(comparator_data.get('attributi', []))} attributi")
+            except json.JSONDecodeError as je:
+                print(f"⚠️ Errore parsing JSON comparatore: {je}")
+                comparator_data = None
+        
+        return text, product_ids, comparator_data
         
     except Exception as e:
         print(f"⚠️ Errore parsing risposta Claude: {e}")
-        return response_text, []
+        return response_text, [], None
 
 
 def clean_product_description(product: dict) -> str:
@@ -292,59 +304,89 @@ def chat():
     try:
         # 1. Recupera storia conversazione
         if session_id not in conversations:
-            conversations[session_id] = []
+            conversations[session_id] = {
+                'history': [],
+                'last_products': [],
+                'last_products_data': []
+            }
         
-        history = conversations[session_id]
+        history = conversations[session_id]['history']
         
-        # 2. Arricchisci query con contesto conversazionale
+        # 2. Rileva richiesta di confronto con prodotti precedenti
+        confronto_keywords = ['confronta', 'confrontali', 'confronto', 'mettili a confronto', 
+                             'compare', 'comparison', 'vs', 'differenz', 'quale scegliere',
+                             'quale mi consigli tra', 'meglio tra']
+        is_confronto = any(kw in user_message.lower() for kw in confronto_keywords)
+        use_previous_products = False
+        
+        if is_confronto and conversations[session_id].get('last_products'):
+            # Verifica se l'utente si riferisce ai prodotti precedenti
+            # (non specifica nuovi modelli nella richiesta)
+            new_model_match = MODELLO_PATTERN.search(user_message)
+            if not new_model_match:
+                use_previous_products = True
+                print(f"🔄 Confronto richiesto - uso prodotti precedenti: {conversations[session_id]['last_products']}")
+        
+        # 3. Arricchisci query con contesto conversazionale
         enriched_query = build_enriched_query(user_message, history)
         
-        # 3. Estrai requisiti per creare filtri
+        # 4. Estrai requisiti per creare filtri
         requirements = matcher.extract_requirements(enriched_query)
         
-        # 4. Crea filtri per il retriever
-        filters = {}
-        if 'categoria' in requirements:
-            filters['categoria'] = requirements['categoria']
-            print(f"🔍 Filtro categoria attivo: {filters['categoria']}")
-        
-        # 5. Retrieval prodotti rilevanti con query arricchita
-        products_with_scores = retriever.search(enriched_query, top_k=20, filters=filters)
-        
-        print(f"📦 Trovati {len(products_with_scores)} prodotti dal retriever")
-        
-        # 6. Re-ranking intelligente
-        reranked = matcher.rerank_products(products_with_scores, enriched_query)
+        # 5. Retrieval o uso prodotti precedenti
+        if use_previous_products:
+            # Usa i prodotti mostrati in precedenza per il confronto
+            reranked = []
+            for pid in conversations[session_id]['last_products']:
+                product = retriever.get_product_by_id(pid)
+                if product:
+                    reranked.append((product, 1.0, ['confronto_richiesto']))
+            print(f"📦 Uso {len(reranked)} prodotti precedenti per confronto")
+        else:
+            # Flusso normale: retrieval + reranking
+            filters = {}
+            if 'categoria' in requirements:
+                filters['categoria'] = requirements['categoria']
+                print(f"🔍 Filtro categoria attivo: {filters['categoria']}")
+            
+            products_with_scores = retriever.search(enriched_query, top_k=20, filters=filters)
+            print(f"📦 Trovati {len(products_with_scores)} prodotti dal retriever")
+            
+            reranked = matcher.rerank_products(products_with_scores, enriched_query)
         
         print(f"🎯 Top 10 dopo re-ranking:")
         for i, (prod, score, reasons) in enumerate(reranked[:10], 1):
             print(f"   {i}. {prod.get('nome')} (ID: {prod.get('id')}) - Score: {score:.3f}")
         
-        # 7. Prepara contesto per Claude (top 10 prodotti)
+        # 6. Prepara contesto per Claude (top 10 prodotti)
         products_context = claude.format_products_for_context(reranked[:10])
         
-        # 8. Genera risposta (Claude riceve prodotti come contesto)
+        # 7. Genera risposta (Claude riceve prodotti come contesto)
         raw_response = claude.chat(
             user_message,
             conversation_history=history,
             products_context=products_context
         )
         
-        # 9. Parsea risposta per estrarre testo e IDs prodotti
-        response_text, selected_product_ids = parse_claude_response(raw_response)
+        # 8. Parsea risposta per estrarre testo, IDs prodotti e comparatore
+        response_text, selected_product_ids, comparator_data = parse_claude_response(raw_response)
         
         print(f"💬 Risposta Claude: {response_text[:100]}...")
         print(f"🏷️  Prodotti selezionati da Claude: {selected_product_ids}")
         
-        # 10. Aggiorna storia (salva solo testo pulito)
-        conversations[session_id].append({
+        # 9. Aggiorna storia (salva solo testo pulito)
+        conversations[session_id]['history'].append({
             'role': 'user',
             'content': user_message
         })
-        conversations[session_id].append({
+        conversations[session_id]['history'].append({
             'role': 'assistant',
             'content': response_text
         })
+        
+        # 10. Salva i prodotti mostrati per confronti futuri
+        if selected_product_ids:
+            conversations[session_id]['last_products'] = selected_product_ids
         
         # 11. Prepara prodotti per il frontend (SOLO quelli selezionati da Claude)
         products_data = []
@@ -402,7 +444,8 @@ def chat():
         
         return jsonify({
             'response': response_text,
-            'products': products_data
+            'products': products_data,
+            'comparator': comparator_data
         })
         
     except Exception as e:
