@@ -3,33 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STIGA Assistant</title>
+    <title>STIGA Product Assistant</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/widget.css') }}">
 </head>
 <body>
-    <div class="widget-container">
-        <!-- MINI HEADER -->
-        <header class="widget-header">
-            <img src="/static/images/stiga-logo.svg" alt="STIGA" class="widget-logo">
-            <span class="widget-title">Product Assistant</span>
+    <div class="container">
+       <!-- HEADER -->
+        <header>
+            <div class="header-left"></div>
+            <div class="header-center">
+                <div class="logo">
+                    <img src="/static/images/stiga-logo.svg" alt="STIGA" class="stiga-logo">
+                </div>
+                <p class="header-subtitle">Il tuo esperto per il giardinaggio</p>
+            </div>
+            <div class="header-right">
+                <select id="language-selector" class="language-dropdown">
+                    <option value="it">🇮🇹 Italiano</option>
+                    <option value="en">🇬🇧 English</option>
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="es">🇪🇸 Español</option>
+                </select>
+            </div>
         </header>
 
-        <!-- CHAT MESSAGES -->
-        <div id="chat-messages" class="chat-messages">
-            <div class="message assistant-message">
-                <div class="message-content">
-                    <p>Ciao! 👋 Sono il tuo consulente STIGA.</p>
-                    <p>Come posso aiutarti oggi?</p>
+        <!-- CHAT CONTAINER -->
+        <div class="chat-container">
+            <!-- MESSAGES AREA -->
+            <div id="chat-messages" class="chat-messages">
+                <!-- Welcome message - populated by JS -->
+                <div id="welcome-message" class="message assistant-message">
+                    <div class="message-content">
+                        <!-- Content injected by JavaScript -->
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- INPUT AREA -->
-        <div class="chat-input-container">
-            <form id="chat-form">
-                <input type="text" id="user-input" placeholder="Scrivi un messaggio..." autocomplete="off">
-                <button type="submit" id="send-button">Invia</button>
-            </form>
+            <!-- INPUT AREA -->
+            <div class="chat-input-container">
+                <form id="chat-form">
+                    <input 
+                        type="text" 
+                        id="user-input" 
+                        placeholder="Scrivi qui la tua domanda..." 
+                        autocomplete="off"
+                    >
+                    <button type="submit" id="send-button">
+                        Invia →
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 
