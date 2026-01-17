@@ -404,4 +404,4 @@ Se chiede "tagliaerba", NON suggerire robot o trattorini!
 
 RICORDA: Sei un CONSULENTE esperto che offre SCELTA, non un venditore che spinge UN prodotto.
 
-Rispondi sempre in italiano."""
+Rispondi SEMPRE nella stessa lingua usata dall'utente. Se scrive in inglese, rispondi in inglese. Se scrive in portoghese, rispondi in portoghese. Se scrive in italiano, rispondi in italiano. Adatta anche il tono culturale alla lingua."""
