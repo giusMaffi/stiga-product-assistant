@@ -19,7 +19,10 @@ function formatMarkdown(text) {
     // 3. Italic: *testo*
     text = text.replace(/\*([^\*\|]+?)\*/g, '<em>$1</em>');
     
-    // 4. Parsing tabelle Markdown
+    // 4. Links: [testo](url)
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+
+    // 5. Parsing tabelle Markdown
     const tableRegex = /\|(.+)\|[\r\n]+\|[-:\| ]+\|[\r\n]+((?:\|.+\|[\r\n]*)+)/g;
     text = text.replace(tableRegex, function(match, headerRow, bodyRows) {
         // Parse header
