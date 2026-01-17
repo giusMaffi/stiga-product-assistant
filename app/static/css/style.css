@@ -36,29 +36,68 @@ body {
     flex-direction: column;
 }
 
-/* HEADER */
+/* ===== HEADER ===== */
 header {
-    background: var(--stiga-blue);
-    color: white;
-    padding: 20px 24px;
-    text-align: center;
-}
-
-header .logo {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    justify-content: center;
+    padding: 15px 20px;
+    background-color: #002136;
 }
 
-header .stiga-logo {
-    height: 50px;
-    width: auto;
+.header-left {
+    flex: 1;
 }
 
-header .header-subtitle {
+.header-center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.logo .stiga-logo {
+    max-height: 50px;  /* Era troppo grande, ridotto */
+}
+
+.header-subtitle {
+    color: white;
     margin-top: 8px;
-    font-size: 15px;
-    opacity: 0.9;
+    font-size: 14px;
+}
+
+.header-right {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.language-dropdown {
+    padding: 8px 12px;
+    font-size: 14px;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.9);
+    color: #002136;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.language-dropdown:hover {
+    background: white;
+    border-color: #00A651;
+}
+
+.language-dropdown:focus {
+    border-color: #00A651;
+    box-shadow: 0 0 0 2px rgba(0, 166, 81, 0.3);
+}
+
+.language-dropdown option {
+    background: white;
+    color: #002136;
 }
 
 /* CHAT CONTAINER */
@@ -443,4 +482,37 @@ header .header-subtitle {
         padding: 8px 10px;
         font-size: 14px;
     }
+}
+
+/* ===== LANGUAGE SELECTOR ===== */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.language-dropdown {
+    padding: 8px 12px;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.language-dropdown:hover {
+    border-color: #00A651;
+}
+
+.language-dropdown:focus {
+    border-color: #00A651;
+    box-shadow: 0 0 0 2px rgba(0, 166, 81, 0.2);
 }

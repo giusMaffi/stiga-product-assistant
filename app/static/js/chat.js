@@ -1,3 +1,134 @@
+// ===== TRADUZIONI MULTILINGUA =====
+const translations = {
+    it: {
+        welcomeTitle: "Ciao! 👋 Sono il tuo consulente STIGA, esperto di giardinaggio dal 1934.",
+        welcomeSubtitle: "<strong>Cosa posso fare per te:</strong>",
+        features: [
+            "🔍 <strong>Trovare il prodotto perfetto</strong> — dimmi le tue esigenze e ti guido alla scelta migliore",
+            "⚖️ <strong>Confrontare prodotti</strong> — \"Confronta l'A 6v con l'A 8v\" e ti mostro tutte le differenze",
+            "💰 <strong>Rispettare il tuo budget</strong> — \"Ho 1000€, cosa mi consigli?\"",
+            "📚 <strong>Darti consigli esperti</strong> — potatura, cura del prato, manutenzione stagionale",
+            "❓ <strong>Rispondere ai tuoi dubbi</strong> — sicurezza, tecnologie, installazione"
+        ],
+        categories: "<strong>Categorie prodotti:</strong> Robot tagliaerba • Tagliaerba • Trattorini • Decespugliatori • Motoseghe • Tagliasiepi • Idropulitrici • Soffiatori • e molto altro!",
+        languageNote: "Scrivi pure in qualsiasi lingua — risponderò nella tua! 🌍",
+        startPrompt: "<em>Inizia descrivendomi il tuo giardino o cosa stai cercando...</em>",
+        placeholder: "Scrivi qui la tua domanda...",
+        sendButton: "Invia →"
+    },
+    en: {
+        welcomeTitle: "Hello! 👋 I'm your STIGA consultant, gardening expert since 1934.",
+        welcomeSubtitle: "<strong>What I can do for you:</strong>",
+        features: [
+            "🔍 <strong>Find the perfect product</strong> — tell me your needs and I'll guide you to the best choice",
+            "⚖️ <strong>Compare products</strong> — \"Compare A 6v with A 8v\" and I'll show you all the differences",
+            "💰 <strong>Respect your budget</strong> — \"I have €1000, what do you recommend?\"",
+            "📚 <strong>Give expert advice</strong> — pruning, lawn care, seasonal maintenance",
+            "❓ <strong>Answer your questions</strong> — safety, technologies, installation"
+        ],
+        categories: "<strong>Product categories:</strong> Robot mowers • Lawn mowers • Ride-on mowers • Brush cutters • Chainsaws • Hedge trimmers • Pressure washers • Blowers • and much more!",
+        languageNote: "Write in any language — I'll respond in yours! 🌍",
+        startPrompt: "<em>Start by describing your garden or what you're looking for...</em>",
+        placeholder: "Type your question here...",
+        sendButton: "Send →"
+    },
+    de: {
+        welcomeTitle: "Hallo! 👋 Ich bin Ihr STIGA-Berater, Gartenexperte seit 1934.",
+        welcomeSubtitle: "<strong>Was ich für Sie tun kann:</strong>",
+        features: [
+            "🔍 <strong>Das perfekte Produkt finden</strong> — teilen Sie mir Ihre Bedürfnisse mit und ich führe Sie zur besten Wahl",
+            "⚖️ <strong>Produkte vergleichen</strong> — \"Vergleiche A 6v mit A 8v\" und ich zeige Ihnen alle Unterschiede",
+            "💰 <strong>Ihr Budget respektieren</strong> — \"Ich habe 1000€, was empfehlen Sie?\"",
+            "📚 <strong>Expertenrat geben</strong> — Beschneidung, Rasenpflege, saisonale Wartung",
+            "❓ <strong>Ihre Fragen beantworten</strong> — Sicherheit, Technologien, Installation"
+        ],
+        categories: "<strong>Produktkategorien:</strong> Mähroboter • Rasenmäher • Rasentraktoren • Freischneider • Kettensägen • Heckenscheren • Hochdruckreiniger • Laubbläser • und vieles mehr!",
+        languageNote: "Schreiben Sie in jeder Sprache — ich antworte in Ihrer! 🌍",
+        startPrompt: "<em>Beschreiben Sie zunächst Ihren Garten oder wonach Sie suchen...</em>",
+        placeholder: "Schreiben Sie hier Ihre Frage...",
+        sendButton: "Senden →"
+    },
+    fr: {
+        welcomeTitle: "Bonjour! 👋 Je suis votre conseiller STIGA, expert en jardinage depuis 1934.",
+        welcomeSubtitle: "<strong>Ce que je peux faire pour vous:</strong>",
+        features: [
+            "🔍 <strong>Trouver le produit parfait</strong> — dites-moi vos besoins et je vous guide vers le meilleur choix",
+            "⚖️ <strong>Comparer les produits</strong> — \"Compare A 6v avec A 8v\" et je vous montre toutes les différences",
+            "💰 <strong>Respecter votre budget</strong> — \"J'ai 1000€, que me conseillez-vous?\"",
+            "📚 <strong>Donner des conseils d'expert</strong> — taille, entretien de la pelouse, maintenance saisonnière",
+            "❓ <strong>Répondre à vos questions</strong> — sécurité, technologies, installation"
+        ],
+        categories: "<strong>Catégories de produits:</strong> Robots tondeuses • Tondeuses • Tracteurs • Débroussailleuses • Tronçonneuses • Taille-haies • Nettoyeurs haute pression • Souffleurs • et bien plus!",
+        languageNote: "Écrivez dans n'importe quelle langue — je répondrai dans la vôtre! 🌍",
+        startPrompt: "<em>Commencez par décrire votre jardin ou ce que vous recherchez...</em>",
+        placeholder: "Écrivez votre question ici...",
+        sendButton: "Envoyer →"
+    },
+    es: {
+        welcomeTitle: "¡Hola! 👋 Soy tu consultor STIGA, experto en jardinería desde 1934.",
+        welcomeSubtitle: "<strong>Lo que puedo hacer por ti:</strong>",
+        features: [
+            "🔍 <strong>Encontrar el producto perfecto</strong> — cuéntame tus necesidades y te guío a la mejor elección",
+            "⚖️ <strong>Comparar productos</strong> — \"Compara A 6v con A 8v\" y te muestro todas las diferencias",
+            "💰 <strong>Respetar tu presupuesto</strong> — \"Tengo 1000€, ¿qué me recomiendas?\"",
+            "📚 <strong>Dar consejos expertos</strong> — poda, cuidado del césped, mantenimiento estacional",
+            "❓ <strong>Responder tus dudas</strong> — seguridad, tecnologías, instalación"
+        ],
+        categories: "<strong>Categorías de productos:</strong> Robots cortacésped • Cortacéspedes • Tractores • Desbrozadoras • Motosierras • Cortasetos • Hidrolimpiadoras • Sopladores • ¡y mucho más!",
+        languageNote: "Escribe en cualquier idioma — ¡responderé en el tuyo! 🌍",
+        startPrompt: "<em>Empieza describiendo tu jardín o lo que estás buscando...</em>",
+        placeholder: "Escribe tu pregunta aquí...",
+        sendButton: "Enviar →"
+    }
+};
+
+// Rileva lingua browser
+function detectBrowserLanguage() {
+    const browserLang = navigator.language || navigator.userLanguage;
+    const langCode = browserLang.split('-')[0].toLowerCase();
+    
+    if (translations[langCode]) {
+        return langCode;
+    }
+    return 'en';
+}
+
+// Aggiorna messaggio di benvenuto
+function updateWelcomeMessage(lang) {
+    const t = translations[lang];
+    const welcomeContent = document.querySelector('#welcome-message .message-content');
+    
+    let featuresHtml = '<ul>';
+    t.features.forEach(feature => {
+        featuresHtml += `<li>${feature}</li>`;
+    });
+    featuresHtml += '</ul>';
+    
+    welcomeContent.innerHTML = `
+        <p>${t.welcomeTitle}</p>
+        <p>${t.welcomeSubtitle}</p>
+        ${featuresHtml}
+        <p>${t.categories}</p>
+        <p>${t.languageNote}</p>
+        <p>${t.startPrompt}</p>
+    `;
+    
+    document.getElementById('user-input').placeholder = t.placeholder;
+    document.getElementById('send-button').textContent = t.sendButton;
+}
+
+// Inizializza lingua
+function initLanguage() {
+    const savedLang = localStorage.getItem('stiga-lang');
+    const lang = savedLang || detectBrowserLanguage();
+    
+    document.getElementById('language-selector').value = lang;
+    updateWelcomeMessage(lang);
+    
+    return lang;
+}
+
+// ===== ELEMENTI DOM =====
 const chatMessages = document.getElementById('chat-messages');
 const chatForm = document.getElementById('chat-form');
 const userInput = document.getElementById('user-input');
@@ -6,10 +137,8 @@ const sendButton = document.getElementById('send-button');
 // Genera session ID unico
 const sessionId = 'session_' + Date.now();
 
-// Formatta markdown in HTML
+// ===== FORMATTAZIONE MARKDOWN =====
 function formatMarkdown(text) {
-    // Converti markdown in HTML con formattazione bella
-    
     // 1. Rimuovi spazi multipli
     text = text.replace(/  +/g, ' ');
     
@@ -25,15 +154,11 @@ function formatMarkdown(text) {
     // 5. Parsing tabelle Markdown
     const tableRegex = /\|(.+)\|[\r\n]+\|[-:\| ]+\|[\r\n]+((?:\|.+\|[\r\n]*)+)/g;
     text = text.replace(tableRegex, function(match, headerRow, bodyRows) {
-        // Parse header
         const headers = headerRow.split('|').map(h => h.trim()).filter(h => h);
-        
-        // Parse body rows
         const rows = bodyRows.trim().split('\n').map(row => {
             return row.split('|').map(cell => cell.trim()).filter(cell => cell);
         });
         
-        // Build HTML table
         let table = '<table class="comparison-table"><thead><tr>';
         headers.forEach(h => {
             table += `<th>${h}</th>`;
@@ -52,37 +177,30 @@ function formatMarkdown(text) {
         return table;
     });
     
-    // 5. Separa i blocchi principali (doppio a capo)
+    // 6. Separa i blocchi principali (doppio a capo)
     let blocks = text.split('\n\n');
-    
     let html = '';
     
     for (let block of blocks) {
         block = block.trim();
         if (!block) continue;
         
-        // Già una tabella HTML? Lasciala così
         if (block.startsWith('<table')) {
             html += block;
             continue;
         }
         
-        // È una lista con bullet points (•, -, *)?
         if (block.match(/^[•\-\*]/m) && !block.includes('|')) {
             let items = block.split('\n').filter(line => line.trim());
             html += '<ul>';
             for (let item of items) {
-                // Rimuovi il bullet point
                 item = item.replace(/^[•\-\*]\s*/, '');
                 if (item.trim()) {
                     html += `<li>${item.trim()}</li>`;
                 }
             }
             html += '</ul>';
-        }
-        // È un paragrafo normale
-        else {
-            // Sostituisci singoli a capo con <br>
+        } else {
             block = block.replace(/\n/g, '<br>');
             html += `<p>${block}</p>`;
         }
@@ -91,12 +209,11 @@ function formatMarkdown(text) {
     return html;
 }
 
-// Auto-scroll al fondo
+// ===== FUNZIONI CHAT =====
 function scrollToBottom() {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Aggiungi messaggio alla chat
 function addMessage(content, isUser = false) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${isUser ? 'user-message' : 'assistant-message'}`;
@@ -104,7 +221,6 @@ function addMessage(content, isUser = false) {
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
     
-    // Formatta markdown solo per messaggi assistente
     if (!isUser) {
         contentDiv.innerHTML = formatMarkdown(content);
     } else {
@@ -116,7 +232,6 @@ function addMessage(content, isUser = false) {
     scrollToBottom();
 }
 
-// Mostra indicatore "typing..."
 function showTypingIndicator() {
     const typingDiv = document.createElement('div');
     typingDiv.className = 'message assistant-message';
@@ -138,7 +253,6 @@ function removeTypingIndicator() {
     }
 }
 
-// Formatta tabella comparativa
 function formatComparisonTable(comparatorData) {
     if (!comparatorData || !comparatorData.prodotti) return '';
     
@@ -147,11 +261,7 @@ function formatComparisonTable(comparatorData) {
     const consiglio = comparatorData.consiglio || '';
     
     let html = '<div class="comparison-container">';
-    
-    // Tabella
     html += '<table class="comparison-table">';
-    
-    // Header con nomi prodotti
     html += '<thead><tr>';
     html += '<th>Caratteristica</th>';
     prodotti.forEach(p => {
@@ -159,7 +269,6 @@ function formatComparisonTable(comparatorData) {
     });
     html += '</tr></thead>';
     
-    // Righe attributi
     html += '<tbody>';
     attributi.forEach(attr => {
         html += '<tr>';
@@ -173,7 +282,6 @@ function formatComparisonTable(comparatorData) {
     });
     html += '</tbody></table>';
     
-    // Verdetto finale
     if (consiglio) {
         html += `<div class="comparison-verdict"><strong>💡 Il mio consiglio:</strong> ${consiglio}</div>`;
     }
@@ -182,27 +290,22 @@ function formatComparisonTable(comparatorData) {
     return html;
 }
 
-// Formatta prodotti come card HTML con immagini
 function formatProductCards(products) {
     if (!products || products.length === 0) return '';
     
     let html = '<div class="products-section">';
     
     products.forEach(product => {
-        // Immagine con fallback
         const imageUrl = product.image_url || 
                         (product.immagini && product.immagini[0]) || 
                         'https://via.placeholder.com/300x200/00A651/ffffff?text=STIGA';
         
-        // Descrizione: taglia al primo punto dopo 150 caratteri
         let desc = product.descrizione || '';
         if (desc.length > 150) {
-            // Trova il primo punto dopo posizione 150
             let cutPoint = desc.indexOf('.', 150);
             if (cutPoint > 0 && cutPoint < 300) {
                 desc = desc.substring(0, cutPoint + 1);
             } else {
-                // Se non trova punto, taglia a 200 e aggiungi ...
                 desc = desc.substring(0, 200).trim() + '...';
             }
         }
@@ -230,23 +333,20 @@ function formatProductCards(products) {
     return html;
 }
 
-// Gestisci invio messaggio
+// ===== EVENT LISTENERS =====
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const message = userInput.value.trim();
     if (!message) return;
     
-    // Aggiungi messaggio utente
     addMessage(message, true);
     userInput.value = '';
     sendButton.disabled = true;
     
-    // Mostra typing indicator
     showTypingIndicator();
     
     try {
-        // Chiamata API
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: {
@@ -264,13 +364,9 @@ chatForm.addEventListener('submit', async (e) => {
         
         const data = await response.json();
         
-        // Rimuovi typing indicator
         removeTypingIndicator();
-        
-        // Aggiungi risposta assistente (solo testo, formattato con markdown)
         addMessage(data.response, false);
         
-        // Se c'è un comparatore, mostralo
         if (data.comparator) {
             const compDiv = document.createElement('div');
             compDiv.className = 'message assistant-message';
@@ -284,7 +380,6 @@ chatForm.addEventListener('submit', async (e) => {
             scrollToBottom();
         }
         
-        // Aggiungi card prodotti SEPARATAMENTE come HTML grezzo
         if (data.products && data.products.length > 0) {
             const productsDiv = document.createElement('div');
             productsDiv.className = 'message assistant-message';
@@ -308,5 +403,13 @@ chatForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Focus automatico sull'input
+// Event listener per cambio lingua
+document.getElementById('language-selector').addEventListener('change', (e) => {
+    const lang = e.target.value;
+    localStorage.setItem('stiga-lang', lang);
+    updateWelcomeMessage(lang);
+});
+
+// ===== INIZIALIZZAZIONE =====
+document.addEventListener('DOMContentLoaded', initLanguage);
 userInput.focus();
