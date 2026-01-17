@@ -43,7 +43,15 @@ def create_product_text(product: dict) -> str:
     
     # Caratteristiche
     if product.get('caratteristiche'):
-        parts.append("Caratteristiche: " + ", ".join(product['caratteristiche']))
+        # Supporta sia lista di stringhe che lista di dizionari
+        caratteristiche = product['caratteristiche']
+        if caratteristiche and isinstance(caratteristiche[0], dict):
+            # Nuovo formato: lista di {titolo, descrizione}
+            chars_text = ". ".join([f"{c['titolo']}: {c['descrizione']}" for c in caratteristiche])
+        else:
+            # Vecchio formato: lista di stringhe
+            chars_text = ", ".join(caratteristiche)
+        parts.append("Caratteristiche: " + chars_text)
     
     # Specifiche tecniche (TUTTE, non solo le importanti)
     specs = product.get('specifiche_tecniche', {})
