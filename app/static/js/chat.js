@@ -6,7 +6,7 @@ const sendButton = document.getElementById('send-button');
 // Genera session ID unico
 const sessionId = 'session_' + Date.now();
 
-// AGGIUNGI QUESTA FUNZIONE QUI
+// Formatta markdown in HTML
 function formatMarkdown(text) {
     // Converti markdown in HTML con formattazione bella
     
@@ -17,9 +17,39 @@ function formatMarkdown(text) {
     text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     
     // 3. Italic: *testo*
-    text = text.replace(/\*([^\*]+?)\*/g, '<em>$1</em>');
+    text = text.replace(/\*([^\*\|]+?)\*/g, '<em>$1</em>');
     
-    // 4. Separa i blocchi principali (doppio a capo)
+    // 4. Parsing tabelle Markdown
+    const tableRegex = /\|(.+)\|[\r\n]+\|[-:\| ]+\|[\r\n]+((?:\|.+\|[\r\n]*)+)/g;
+    text = text.replace(tableRegex, function(match, headerRow, bodyRows) {
+        // Parse header
+        const headers = headerRow.split('|').map(h => h.trim()).filter(h => h);
+        
+        // Parse body rows
+        const rows = bodyRows.trim().split('\n').map(row => {
+            return row.split('|').map(cell => cell.trim()).filter(cell => cell);
+        });
+        
+        // Build HTML table
+        let table = '<table class="comparison-table"><thead><tr>';
+        headers.forEach(h => {
+            table += `<th>${h}</th>`;
+        });
+        table += '</tr></thead><tbody>';
+        
+        rows.forEach(row => {
+            table += '<tr>';
+            row.forEach((cell, idx) => {
+                table += `<td>${cell}</td>`;
+            });
+            table += '</tr>';
+        });
+        
+        table += '</tbody></table>';
+        return table;
+    });
+    
+    // 5. Separa i blocchi principali (doppio a capo)
     let blocks = text.split('\n\n');
     
     let html = '';
@@ -28,8 +58,14 @@ function formatMarkdown(text) {
         block = block.trim();
         if (!block) continue;
         
+        // Già una tabella HTML? Lasciala così
+        if (block.startsWith('<table')) {
+            html += block;
+            continue;
+        }
+        
         // È una lista con bullet points (•, -, *)?
-        if (block.match(/^[•\-\*]/m)) {
+        if (block.match(/^[•\-\*]/m) && !block.includes('|')) {
             let items = block.split('\n').filter(line => line.trim());
             html += '<ul>';
             for (let item of items) {
@@ -97,6 +133,50 @@ function removeTypingIndicator() {
     if (indicator) {
         indicator.remove();
     }
+}
+
+// Formatta tabella comparativa
+function formatComparisonTable(comparatorData) {
+    if (!comparatorData || !comparatorData.prodotti) return '';
+    
+    const prodotti = comparatorData.prodotti;
+    const attributi = comparatorData.attributi || [];
+    const consiglio = comparatorData.consiglio || '';
+    
+    let html = '<div class="comparison-container">';
+    
+    // Tabella
+    html += '<table class="comparison-table">';
+    
+    // Header con nomi prodotti
+    html += '<thead><tr>';
+    html += '<th>Caratteristica</th>';
+    prodotti.forEach(p => {
+        html += `<th>${p}</th>`;
+    });
+    html += '</tr></thead>';
+    
+    // Righe attributi
+    html += '<tbody>';
+    attributi.forEach(attr => {
+        html += '<tr>';
+        html += `<td>${attr.nome}</td>`;
+        attr.valori.forEach((val, idx) => {
+            const isWinner = attr.migliore === idx;
+            const cellClass = isWinner ? 'winner-cell' : '';
+            html += `<td class="${cellClass}">${val}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    
+    // Verdetto finale
+    if (consiglio) {
+        html += `<div class="comparison-verdict"><strong>💡 Il mio consiglio:</strong> ${consiglio}</div>`;
+    }
+    
+    html += '</div>';
+    return html;
 }
 
 // Formatta prodotti come card HTML con immagini
@@ -187,6 +267,20 @@ chatForm.addEventListener('submit', async (e) => {
         // Aggiungi risposta assistente (solo testo, formattato con markdown)
         addMessage(data.response, false);
         
+        // Se c'è un comparatore, mostralo
+        if (data.comparator) {
+            const compDiv = document.createElement('div');
+            compDiv.className = 'message assistant-message';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = formatComparisonTable(data.comparator);
+            
+            compDiv.appendChild(contentDiv);
+            chatMessages.appendChild(compDiv);
+            scrollToBottom();
+        }
+        
         // Aggiungi card prodotti SEPARATAMENTE come HTML grezzo
         if (data.products && data.products.length > 0) {
             const productsDiv = document.createElement('div');
@@ -194,7 +288,7 @@ chatForm.addEventListener('submit', async (e) => {
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
-            contentDiv.innerHTML = formatProductCards(data.products);  // HTML grezzo, non passa da formatMarkdown
+            contentDiv.innerHTML = formatProductCards(data.products);
             
             productsDiv.appendChild(contentDiv);
             chatMessages.appendChild(productsDiv);
