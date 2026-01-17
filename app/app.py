@@ -1,6 +1,6 @@
 """
 Flask App - Stiga Product Assistant
-Production-Ready con Query Enrichment Hybrid + Fix Descrizioni + Comparatore
+Production-Ready con Query Enrichment Hybrid + Fix Descrizioni + Comparatore + Widget
 """
 from flask import Flask, render_template, request, jsonify, Response
 from flask_cors import CORS
@@ -289,6 +289,12 @@ def clean_product_description(product: dict) -> str:
 def index():
     """Pagina principale"""
     return render_template('index.html')
+
+
+@app.route('/widget')
+def widget():
+    """Versione widget per embed in iframe"""
+    return render_template('widget.html')
 
 
 @app.route('/api/chat', methods=['POST'])

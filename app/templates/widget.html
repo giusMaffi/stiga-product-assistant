@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STIGA Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/widget.css') }}">
+</head>
+<body>
+    <div class="widget-container">
+        <!-- MINI HEADER -->
+        <header class="widget-header">
+            <img src="/static/images/stiga-logo.svg" alt="STIGA" class="widget-logo">
+            <span class="widget-title">Product Assistant</span>
+        </header>
+
+        <!-- CHAT MESSAGES -->
+        <div id="chat-messages" class="chat-messages">
+            <div class="message assistant-message">
+                <div class="message-content">
+                    <p>Ciao! 👋 Sono il tuo consulente STIGA.</p>
+                    <p>Come posso aiutarti oggi?</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- INPUT AREA -->
+        <div class="chat-input-container">
+            <form id="chat-form">
+                <input type="text" id="user-input" placeholder="Scrivi un messaggio..." autocomplete="off">
+                <button type="submit" id="send-button">Invia</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>
