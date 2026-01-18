@@ -7,6 +7,7 @@ import numpy as np
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
 
 from ..config import (
     PRODUCTS_FILE,
@@ -39,24 +40,85 @@ class ProductRetriever:
         print(f"✅ Caricati {len(self.products)} prodotti")
         print(f"✅ Embeddings shape: {self.embeddings.shape}")
     
+    def _detect_exact_category_match(self, query: str) -> Optional[str]:
+        """
+        Rileva se la query contiene esattamente il nome di una categoria
+        Ritorna la categoria se trovata, altrimenti None
+        """
+        query_lower = query.lower().strip()
+        
+        # Mappa categorie esatte (query → categoria nel database)
+        exact_categories = {
+            'tagliasiepi': 'Tagliasiepi',
+            'robot tagliaerba': 'Robot tagliaerba',
+            'robot': 'Robot tagliaerba',
+            'tagliaerba': 'Tagliaerba',
+            'trattorino': 'Trattorini da giardino',
+            'trattorini': 'Trattorini da giardino',
+            'decespugliatore': 'Decespugliatori',
+            'decespugliatori': 'Decespugliatori',
+            'motosega': 'Motoseghe',
+            'motoseghe': 'Motoseghe',
+            'idropulitrice': 'Idropulitrici ad alta pressione',
+            'idropulitrici': 'Idropulitrici ad alta pressione',
+            'spazzaneve': 'Spazzaneve',
+            'soffiatore': 'Soffiatori e aspiratori',
+            'soffiatori': 'Soffiatori e aspiratori',
+            'biotrituratore': 'Biotrituratori',
+            'biotrituratori': 'Biotrituratori',
+            'motozappa': 'Motozappe',
+            'motozappe': 'Motozappe',
+            'spazzatrice': 'Spazzatrici',
+            'spazzatrici': 'Spazzatrici',
+        }
+        
+        # Check se la query è esattamente una categoria
+        if query_lower in exact_categories:
+            return exact_categories[query_lower]
+        
+        # Check se la query contiene una categoria
+        for key, cat in exact_categories.items():
+            if key in query_lower:
+                return cat
+        
+        return None
+    
     def search(
         self, 
         query: str, 
         top_k: int = TOP_K_PRODUCTS,
-        filters: Optional[Dict] = None
+        filters: Optional[Dict] = None,
+        min_score: float = 0.0
     ) -> List[Tuple[dict, float]]:
         """
         Cerca prodotti rilevanti per la query
         """
+        # Check per match esatto categoria
+        exact_category = self._detect_exact_category_match(query)
+        
+        if exact_category:
+            print(f"🎯 Rilevata categoria esatta: '{exact_category}' dalla query '{query}'")
+            # Forza filtro sulla categoria
+            if not filters:
+                filters = {}
+            filters['categoria'] = exact_category
+        
         # Encode query
         query_embedding = self.model.encode([query])[0]
         
-        # Calcola similarità
-        similarities = np.dot(self.embeddings, query_embedding)
+        # Calcola cosine similarity
+        similarities = cosine_similarity(
+            [query_embedding], 
+            self.embeddings
+        )[0]
         
         # Crea lista candidati con scores
         candidates = []
         for idx, score in enumerate(similarities):
+            # Filtra per score minimo
+            if score < min_score:
+                continue
+                
             product = self.products[idx]
             
             # Applica filtri se presenti
@@ -64,13 +126,26 @@ class ProductRetriever:
                 if 'categoria' in filters:
                     cat_filter = filters['categoria'].lower()
                     prod_cat = product.get('categoria', '').lower()
-                    if cat_filter not in prod_cat:
+                    
+                    # Match ESATTO (non parziale) per evitare accessori
+                    # "Robot tagliaerba" deve matchare "robot tagliaerba" 
+                    # ma NON "accessori per robot tagliaerba"
+                    if prod_cat != cat_filter:
                         continue
             
             candidates.append((product, float(score)))
         
         # Ordina per score
         candidates.sort(key=lambda x: x[1], reverse=True)
+        
+        # Log per debug
+        if len(candidates) > 0:
+            print(f"🔍 Query: '{query}' → Trovati {len(candidates)} prodotti")
+            if exact_category:
+                print(f"   Filtrati per categoria: {exact_category}")
+            print(f"   Top 3 scores: {[round(c[1], 3) for c in candidates[:3]]}")
+        else:
+            print(f"⚠️  Query: '{query}' → Nessun prodotto trovato!")
         
         # Ritorna top K
         return candidates[:top_k]

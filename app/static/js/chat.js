@@ -487,6 +487,6 @@ document.addEventListener('DOMContentLoaded', () => {
         version: isWidget ? 'widget' : 'main',
         language: currentLang
     });
+    
+    userInput.focus();
 });
-
-userInput.focus();

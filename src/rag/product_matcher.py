@@ -1,8 +1,8 @@
 """
-Product Matcher - Re-ranking con logica intelligente accessori
+Product Matcher - Sistema intelligente di matching e re-ranking
 """
 import re
-from typing import List, Dict, Tuple
+from typing import List, Tuple, Dict
 
 # Keywords accessori
 ACCESSORY_KEYWORDS = [
@@ -20,7 +20,18 @@ ACCESSORY_CATEGORIES = [
     'accessori per robot tagliaerba', 'accessori per tagliaerba',
     'accessori per trattorini', 'accessori per decespugliatori',
     'accessori per motoseghe', 'accessori per idropulitrici',
-    'kit batteria', 'ricambi', 'pezzi di ricambio'
+    'kit batteria', 'ricambi', 'pezzi di ricambio',
+    'accessori per tagliabordi e decespugliatori',
+    'accessori per tagliaerba elicoidali',
+    'accessori per trattorini a taglio frontale',
+    'accessori per trattorini da giardino',
+    'accessori per attrezzi multifunzione',
+    'accessori per idropulitrici ad alta pressione',
+    'accessori per motoseghe',
+    'accessori per motozappe',
+    'accessori per spazzaneve',
+    'accessori per spazzatrici',
+    'accessori cross categoria'
 ]
 
 
@@ -40,12 +51,29 @@ def is_accessory_product(product: dict) -> bool:
     categoria = product.get('categoria', '').lower()
     nome = product.get('nome', '').lower()
     
-    # Check categoria
+    # Check categoria PRIMA - più affidabile
     for cat in ACCESSORY_CATEGORIES:
         if cat.lower() in categoria:
             return True
     
-    # Check nome - split su spazi
+    # Se la categoria è un prodotto principale, NON è un accessorio
+    # (anche se ha "lama" nel nome, un tagliasiepi NON è un accessorio)
+    main_categories = [
+        'tagliasiepi', 'robot tagliaerba', 'tagliaerba', 'trattorini',
+        'decespugliatori', 'motoseghe', 'idropulitrici', 'spazzaneve',
+        'soffiatori', 'motozappe', 'biotrituratori', 'forbici da potatura',
+        'cesoie per siepi', 'attrezzi multifunzione', 'tagliabordi',
+        'arieggiatori e scarificatori', 'aspiratori trituratori',
+        'attrezzi manuali per la coltivazione', 'falciatrici e coltivatori',
+        'tagliaerba elicoidali', 'trattorini assiali', 'trattorini da giardino',
+        'trattorini tagliaerba frontali', 'spazzatrici'
+    ]
+    
+    for main_cat in main_categories:
+        if main_cat in categoria:
+            return False  # È un prodotto principale!
+    
+    # Solo DOPO verifica nel nome (per prodotti senza categoria chiara)
     nome_words = set(nome.split())
     for keyword in ACCESSORY_KEYWORDS:
         if keyword in nome or keyword in nome_words:
@@ -75,6 +103,7 @@ class ProductMatcher:
             'decespugliatore': r'\bdecespugliator[ei]\b',
             'motosega': r'\bmotosega\b',
             'idropulitrice': r'\bidropulitric[ei]\b',
+            'tagliasiepi': r'\btagliasiepi\b',
         }
         
         for category, pattern in category_patterns.items():

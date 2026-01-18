@@ -9,6 +9,7 @@ from pathlib import Path
 import json
 import re
 from typing import List, Dict, Optional
+from sklearn.metrics.pairwise import cosine_similarity
 
 # Aggiungi path al modulo
 sys.path.insert(0, str(Path(__file__).parent.parent))
