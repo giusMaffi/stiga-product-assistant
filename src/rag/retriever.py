@@ -3,6 +3,7 @@ Product Retriever - Semantic search sui prodotti
 """
 import json
 import pickle
+import re
 import numpy as np
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
@@ -15,6 +16,28 @@ from ..config import (
     EMBEDDING_MODEL,
     TOP_K_PRODUCTS
 )
+
+
+def is_accessory_query(query: str) -> bool:
+    """Determina se la query cerca accessori"""
+    ACCESSORY_KEYWORDS = [
+        'accessorio', 'accessori', 'ricambio', 'ricambi', 'kit', 'pezzo', 'pezzi',
+        'lama', 'lame', 'cavo', 'cavi', 'perimetrale', 'bobina', 'stazione', 'base', 
+        'ricarica', 'chiodi', 'picchetti', 'installazione', 'connettore', 'copertura',
+        'piatto', 'piatti', 'sacco', 'sacchi', 'raccoglierba', 'mulching',
+        'filo', 'testina', 'testine', 'rocchetto', 'catena', 'catene', 'barra',
+        'lancia', 'spazzola', 'ugello', 'tubo', 'detergente', 'prolunga',
+        'batteria', 'batterie', 'caricabatterie', 'alimentatore',
+        'filtro', 'candela', 'guarnizione', 'molla'
+    ]
+    
+    query_lower = query.lower()
+    query_words = set(query_lower.split())
+    
+    for keyword in ACCESSORY_KEYWORDS:
+        if keyword in query_lower or keyword in query_words:
+            return True
+    return False
 
 
 class ProductRetriever:
@@ -93,15 +116,21 @@ class ProductRetriever:
         """
         Cerca prodotti rilevanti per la query
         """
-        # Check per match esatto categoria
-        exact_category = self._detect_exact_category_match(query)
+        # 🆕 FIX: NON forzare categoria se cerca accessori
+        cerca_accessori = is_accessory_query(query)
         
-        if exact_category:
-            print(f"🎯 Rilevata categoria esatta: '{exact_category}' dalla query '{query}'")
-            # Forza filtro sulla categoria
-            if not filters:
-                filters = {}
-            filters['categoria'] = exact_category
+        # Check per match esatto categoria SOLO se NON cerca accessori
+        if not cerca_accessori:
+            exact_category = self._detect_exact_category_match(query)
+            
+            if exact_category:
+                print(f"🎯 Rilevata categoria esatta: '{exact_category}' dalla query '{query}'")
+                # Forza filtro sulla categoria
+                if not filters:
+                    filters = {}
+                filters['categoria'] = exact_category
+        else:
+            print(f"🔧 Query accessori rilevata nel retriever - NON forzo categoria")
         
         # Encode query
         query_embedding = self.model.encode([query])[0]
@@ -141,8 +170,8 @@ class ProductRetriever:
         # Log per debug
         if len(candidates) > 0:
             print(f"🔍 Query: '{query}' → Trovati {len(candidates)} prodotti")
-            if exact_category:
-                print(f"   Filtrati per categoria: {exact_category}")
+            if filters and 'categoria' in filters:
+                print(f"   Filtrati per categoria: {filters['categoria']}")
             print(f"   Top 3 scores: {[round(c[1], 3) for c in candidates[:3]]}")
         else:
             print(f"⚠️  Query: '{query}' → Nessun prodotto trovato!")

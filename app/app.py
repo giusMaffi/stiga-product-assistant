@@ -1,6 +1,6 @@
 """
 Flask App - Stiga Product Assistant
-Production-Ready con Query Enrichment Hybrid + Fix Descrizioni + Comparatore + Widget
+Production-Ready con Query Enrichment Hybrid + Fix Descrizioni + Comparatore + Widget + Analytics
 """
 from flask import Flask, render_template, request, jsonify, Response
 from flask_cors import CORS
@@ -10,6 +10,9 @@ import json
 import re
 from typing import List, Dict, Optional
 from sklearn.metrics.pairwise import cosine_similarity
+import logging
+from datetime import datetime
+import hashlib
 
 # Aggiungi path al modulo
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -20,6 +23,21 @@ from src.config import PORT, FLASK_DEBUG
 
 app = Flask(__name__)
 CORS(app)
+
+# Setup directory logs
+LOGS_DIR = Path(__file__).parent.parent / 'logs'
+LOGS_DIR.mkdir(exist_ok=True)
+
+# Setup logging per query utenti
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(message)s'
+)
+query_logger = logging.getLogger('queries')
+query_handler = logging.FileHandler(LOGS_DIR / 'user_queries.log', encoding='utf-8')
+query_handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
+query_logger.addHandler(query_handler)
+query_logger.setLevel(logging.INFO)
 
 # Inizializza componenti (una sola volta all'avvio)
 print("🚀 Inizializzazione componenti...")
@@ -308,6 +326,16 @@ def chat():
     if not user_message:
         return jsonify({'error': 'Message is required'}), 400
     
+    # Log query utente (con session hash per privacy)
+    session_hash = hashlib.md5(session_id.encode()).hexdigest()[:8]
+    query_logger.info(json.dumps({
+        'type': 'query',
+        'timestamp': datetime.now().isoformat(),
+        'session': session_hash,
+        'query': user_message,
+        'query_length': len(user_message)
+    }, ensure_ascii=False))
+    
     try:
         # 1. Recupera storia conversazione
         if session_id not in conversations:
@@ -449,6 +477,17 @@ def chat():
         
         print(f"📦 Invio {len(products_data)} prodotti al frontend\n")
         
+        # Log risultati
+        query_logger.info(json.dumps({
+            'type': 'results',
+            'timestamp': datetime.now().isoformat(),
+            'session': session_hash,
+            'products_count': len(products_data),
+            'top_products': [p['nome'] for p in products_data[:5]],
+            'categories': list(set([p['categoria'] for p in products_data])),
+            'has_comparison': comparator_data is not None
+        }, ensure_ascii=False))
+        
         return jsonify({
             'response': response_text,
             'products': products_data,
@@ -459,6 +498,15 @@ def chat():
         print(f"❌ Errore: {e}")
         import traceback
         traceback.print_exc()
+        
+        # Log errore
+        query_logger.info(json.dumps({
+            'type': 'error',
+            'timestamp': datetime.now().isoformat(),
+            'session': session_hash,
+            'error': str(e)
+        }, ensure_ascii=False))
+        
         return jsonify({'error': str(e)}), 500
 
 
@@ -481,5 +529,6 @@ def get_product(product_id):
 if __name__ == '__main__':
     print(f"\n🌐 Avvio server su http://localhost:{PORT}")
     print(f"   Debug mode: {FLASK_DEBUG}")
+    print(f"   Logs directory: {LOGS_DIR}")
     print(f"\n   Apri il browser e vai su http://localhost:{PORT}\n")
     app.run(debug=FLASK_DEBUG, port=PORT, host='0.0.0.0')

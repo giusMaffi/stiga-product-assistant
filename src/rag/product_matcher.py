@@ -94,22 +94,30 @@ class ProductMatcher:
         requirements = {}
         query_lower = query.lower()
         
-        # Estrai categoria
-        category_patterns = {
-            'robot tagliaerba': r'\brobot\b.*\btagliaerba\b|\btagliaerba\b.*\brobot\b',
-            'robot': r'\brobot\b',
-            'trattorino': r'\btrattorino\b',
-            'tagliaerba': r'\btagliaerba\b',
-            'decespugliatore': r'\bdecespugliator[ei]\b',
-            'motosega': r'\bmotosega\b',
-            'idropulitrice': r'\bidropulitric[ei]\b',
-            'tagliasiepi': r'\btagliasiepi\b',
-        }
+        # 🆕 FIX ANTI-ALLUCINAZIONE: Se cerca accessori, NON filtrare per categoria prodotto
+        cerca_accessori = is_accessory_query(query)
         
-        for category, pattern in category_patterns.items():
-            if re.search(pattern, query_lower):
-                requirements['categoria'] = category
-                break
+        if cerca_accessori:
+            # L'utente cerca accessori, non il prodotto principale
+            # NON estrarre categoria come filtro altrimenti trova trattorini invece di accessori per trattorini
+            print("🔧 Rilevata ricerca accessori - SKIP filtro categoria prodotto")
+        else:
+            # Estrai categoria SOLO se NON cerca accessori
+            category_patterns = {
+                'robot tagliaerba': r'\brobot\b.*\btagliaerba\b|\btagliaerba\b.*\brobot\b',
+                'robot': r'\brobot\b',
+                'trattorino': r'\btrattorino\b',
+                'tagliaerba': r'\btagliaerba\b',
+                'decespugliatore': r'\bdecespugliator[ei]\b',
+                'motosega': r'\bmotosega\b',
+                'idropulitrice': r'\bidropulitric[ei]\b',
+                'tagliasiepi': r'\btagliasiepi\b',
+            }
+            
+            for category, pattern in category_patterns.items():
+                if re.search(pattern, query_lower):
+                    requirements['categoria'] = category
+                    break
         
         # Estrai dimensioni
         mq_match = re.search(r'(\d+)\s*(?:m²|mq|metri)', query_lower)
