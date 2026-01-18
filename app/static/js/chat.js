@@ -1,3 +1,10 @@
+// ===== UMAMI ANALYTICS HELPER =====
+function trackEvent(eventName, eventData = {}) {
+    if (typeof umami !== 'undefined') {
+        umami.track(eventName, eventData);
+    }
+}
+
 // ===== TRADUZIONI MULTILINGUA =====
 const translations = {
     it: {
@@ -137,6 +144,10 @@ const sendButton = document.getElementById('send-button');
 // Genera session ID unico
 const sessionId = 'session_' + Date.now();
 
+// Track session start
+let sessionStartTime = Date.now();
+let messageCount = 0;
+
 // ===== FORMATTAZIONE MARKDOWN =====
 function formatMarkdown(text) {
     // 1. Rimuovi spazi multipli
@@ -260,6 +271,12 @@ function formatComparisonTable(comparatorData) {
     const attributi = comparatorData.attributi || [];
     const consiglio = comparatorData.consiglio || '';
     
+    // Track comparison usage
+    trackEvent('comparison_used', {
+        products_count: prodotti.length,
+        language: document.getElementById('language-selector').value
+    });
+    
     let html = '<div class="comparison-container">';
     html += '<table class="comparison-table">';
     html += '<thead><tr>';
@@ -321,7 +338,7 @@ function formatProductCards(products) {
                     ${product.categoria ? `<div class="product-category">${product.categoria}</div>` : ''}
                     <div class="product-description">${desc}</div>
                     ${product.prezzo ? `<div class="product-price">${product.prezzo}</div>` : ''}
-                    <a href="${product.url}" target="_blank" class="product-link">
+                    <a href="${product.url}" target="_blank" class="product-link" onclick="trackProductClick('${product.nome}', '${product.categoria || 'unknown'}')">
                         Scopri tutti i dettagli →
                     </a>
                 </div>
@@ -333,12 +350,30 @@ function formatProductCards(products) {
     return html;
 }
 
+// Track product clicks
+function trackProductClick(productName, productCategory) {
+    trackEvent('product_clicked', {
+        product_name: productName,
+        product_category: productCategory,
+        language: document.getElementById('language-selector').value
+    });
+}
+
 // ===== EVENT LISTENERS =====
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const message = userInput.value.trim();
     if (!message) return;
+    
+    messageCount++;
+    
+    // Track message sent
+    trackEvent('message_sent', {
+        message_length: message.length,
+        message_count: messageCount,
+        language: document.getElementById('language-selector').value
+    });
     
     addMessage(message, true);
     userInput.value = '';
@@ -391,12 +426,23 @@ chatForm.addEventListener('submit', async (e) => {
             productsDiv.appendChild(contentDiv);
             chatMessages.appendChild(productsDiv);
             scrollToBottom();
+            
+            // Track products shown
+            trackEvent('products_shown', {
+                products_count: data.products.length,
+                language: document.getElementById('language-selector').value
+            });
         }
         
     } catch (error) {
         removeTypingIndicator();
         addMessage('Mi dispiace, si è verificato un errore. Riprova.', false);
         console.error('Errore:', error);
+        
+        // Track error
+        trackEvent('chat_error', {
+            error_message: error.message
+        });
     } finally {
         sendButton.disabled = false;
         userInput.focus();
@@ -405,11 +451,42 @@ chatForm.addEventListener('submit', async (e) => {
 
 // Event listener per cambio lingua
 document.getElementById('language-selector').addEventListener('change', (e) => {
-    const lang = e.target.value;
-    localStorage.setItem('stiga-lang', lang);
-    updateWelcomeMessage(lang);
+    const oldLang = localStorage.getItem('stiga-lang') || 'it';
+    const newLang = e.target.value;
+    
+    localStorage.setItem('stiga-lang', newLang);
+    updateWelcomeMessage(newLang);
+    
+    // Track language change
+    trackEvent('language_changed', {
+        from: oldLang,
+        to: newLang
+    });
+});
+
+// Track session end on page unload
+window.addEventListener('beforeunload', () => {
+    const sessionDuration = Math.floor((Date.now() - sessionStartTime) / 1000);
+    
+    trackEvent('session_end', {
+        duration_seconds: sessionDuration,
+        message_count: messageCount,
+        language: document.getElementById('language-selector').value
+    });
 });
 
 // ===== INIZIALIZZAZIONE =====
-document.addEventListener('DOMContentLoaded', initLanguage);
+document.addEventListener('DOMContentLoaded', () => {
+    const currentLang = initLanguage();
+    
+    // Determine if widget or main version
+    const isWidget = window.location.pathname.includes('widget');
+    
+    // Track chat opened
+    trackEvent('chat_opened', {
+        version: isWidget ? 'widget' : 'main',
+        language: currentLang
+    });
+});
+
 userInput.focus();
