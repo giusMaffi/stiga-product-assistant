@@ -1,9 +1,11 @@
 """
 Flask App - Stiga Product Assistant
-Production-Ready con Query Enrichment Hybrid + Fix Descrizioni + Comparatore + Widget + Analytics
+Production-Ready con Query Enrichment Hybrid + Fix Descrizioni + Comparatore + Widget + Analytics + HTTP Basic Auth
 """
 from flask import Flask, render_template, request, jsonify, Response
 from flask_cors import CORS
+from flask_httpauth import HTTPBasicAuth
+from werkzeug.security import generate_password_hash, check_password_hash
 import sys
 from pathlib import Path
 import json
@@ -23,6 +25,19 @@ from src.config import PORT, FLASK_DEBUG
 
 app = Flask(__name__)
 CORS(app)
+
+# Setup HTTP Basic Authentication
+auth = HTTPBasicAuth()
+
+# Credenziali di accesso (cambia username/password come preferisci)
+users = {
+    "stiga": generate_password_hash("StigaDemo2025!")
+}
+
+@auth.verify_password
+def verify_password(username, password):
+    if username in users and check_password_hash(users.get(username), password):
+        return username
 
 # Setup directory logs
 LOGS_DIR = Path(__file__).parent.parent / 'logs'
@@ -245,10 +260,8 @@ def parse_claude_response(response_text: str) -> tuple:
             try:
                 comparator_json = comparator_match.group(1).strip()
                 comparator_data = json.loads(comparator_json)
-                print(f"🔄 Comparatore trovato: {len(comparator_data.get('attributi', []))} attributi")
-            except json.JSONDecodeError as je:
-                print(f"⚠️ Errore parsing JSON comparatore: {je}")
-                comparator_data = None
+            except json.JSONDecodeError:
+                print("⚠️ Errore parsing comparatore JSON")
         
         return text, product_ids, comparator_data
         
@@ -257,37 +270,28 @@ def parse_claude_response(response_text: str) -> tuple:
         return response_text, [], None
 
 
-def clean_product_description(product: dict) -> str:
+def clean_product_description(product: Dict) -> str:
     """
-    Estrae descrizione pulita e significativa dal prodotto
+    Pulisce e prepara descrizione prodotto per visualizzazione
+    Limita a ~280 caratteri evitando troncamenti innaturali
     """
-    descrizione_completa = product.get('descrizione_completa', '')
-    descrizione_breve = product.get('descrizione', '')
+    desc = product.get('descrizione', '')
     
-    desc = descrizione_completa if descrizione_completa else descrizione_breve
+    # Rimuovi HTML tags
+    desc_clean = re.sub(r'<[^>]+>', '', desc)
     
-    if not desc:
-        return f"{product.get('categoria', 'Prodotto')} STIGA di alta qualità."
+    # Rimuovi multipli spazi/newline
+    desc_clean = re.sub(r'\s+', ' ', desc_clean).strip()
     
-    # Trova dove inizia la descrizione vera (salta il prefisso generico)
-    markers = ['Il robot', 'Il tagliaerba', 'Il trattorino', 'Il decespugliatore', 
-               'Il soffiatore', 'Il biotrituratore', 'La motosega', 'La idropulitrice',
-               'Lo spazzaneve', 'Questo ', 'Questa ', 'Il kit', 'La bobina', 'Il cavo']
-    
-    desc_clean = desc
-    for marker in markers:
-        pos = desc.find(marker)
-        if pos > 0:
-            desc_clean = desc[pos:]
-            break
-    
-    # Rimuovi 'Mostra di più' e tutto dopo
-    if 'Mostra di più' in desc_clean:
-        desc_clean = desc_clean.split('Mostra di più')[0].strip()
-    
-    # Taglia a 300 caratteri (al punto più vicino)
-    if len(desc_clean) > 300:
-        cutoff = desc_clean.find('.', 200)
+    # Tronca intelligentemente
+    if len(desc_clean) > 280:
+        # Cerca punto/virgola/newline naturale entro 350 caratteri
+        cutoff = desc_clean.rfind('.', 200, 350)
+        if cutoff == -1:
+            cutoff = desc_clean.rfind(',', 200, 350)
+        if cutoff == -1:
+            cutoff = desc_clean.rfind('\n', 200, 350)
+        
         if 200 < cutoff < 350:
             desc_clean = desc_clean[:cutoff + 1]
         else:
@@ -305,18 +309,21 @@ def clean_product_description(product: dict) -> str:
 # ═══════════════════════════════════════════════════════════════════
 
 @app.route('/')
+@auth.login_required
 def index():
     """Pagina principale"""
     return render_template('index.html')
 
 
 @app.route('/widget')
+@auth.login_required
 def widget():
     """Versione widget per embed in iframe"""
     return render_template('widget.html')
 
 
 @app.route('/api/chat', methods=['POST'])
+@auth.login_required
 def chat():
     """Endpoint principale per chat con l'assistente"""
     data = request.json
@@ -511,6 +518,7 @@ def chat():
 
 
 @app.route('/api/categories', methods=['GET'])
+@auth.login_required
 def get_categories():
     """Ottieni tutte le categorie disponibili"""
     categories = retriever.get_all_categories()
@@ -518,6 +526,7 @@ def get_categories():
 
 
 @app.route('/api/product/<product_id>', methods=['GET'])
+@auth.login_required
 def get_product(product_id):
     """Ottieni dettagli di un prodotto specifico"""
     product = retriever.get_product_by_id(product_id)
@@ -530,5 +539,6 @@ if __name__ == '__main__':
     print(f"\n🌐 Avvio server su http://localhost:{PORT}")
     print(f"   Debug mode: {FLASK_DEBUG}")
     print(f"   Logs directory: {LOGS_DIR}")
+    print(f"   🔒 Autenticazione attiva - Username: stiga")
     print(f"\n   Apri il browser e vai su http://localhost:{PORT}\n")
     app.run(debug=FLASK_DEBUG, port=PORT, host='0.0.0.0')
