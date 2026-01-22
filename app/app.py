@@ -22,7 +22,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.rag import ProductRetriever, ProductMatcher
 from src.api import ClaudeClient
 from src.config import PORT, FLASK_DEBUG
-from analytics_routes import analytics_bp
+try:
+    from app.analytics_routes import analytics_bp
+except ModuleNotFoundError:
+    from analytics_routes import analytics_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -518,6 +521,59 @@ def chat():
         
         return jsonify({'error': str(e)}), 500
 
+
+
+@app.route('/api/track-click', methods=['POST'])
+@auth.login_required
+def track_click():
+    """Traccia click su link prodotto"""
+    try:
+        data = request.json
+        product_id = data.get('product_id')
+        product_name = data.get('product_name')
+        session_id = data.get('session_id', 'unknown')
+        
+        if not product_id:
+            return jsonify({'status': 'error', 'message': 'product_id required'}), 400
+        
+        # Log su PostgreSQL
+        import psycopg2
+        from datetime import datetime
+        
+        db_url = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+        
+        if db_url:
+            conn = psycopg2.connect(db_url)
+            cur = conn.cursor()
+            
+            # Hash session per privacy
+            session_hash = hashlib.md5(session_id.encode()).hexdigest()[:8]
+            
+            cur.execute("""
+                INSERT INTO analytics_events 
+                (session_id, event_type, timestamp, data)
+                VALUES (%s, %s, %s, %s)
+            """, (
+                session_hash,
+                'product_click',
+                datetime.now(),
+                json.dumps({
+                    'product_id': product_id,
+                    'product_name': product_name
+                })
+            ))
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            print(f"✅ Click tracked: {product_name} (session: {session_hash})")
+        
+        return jsonify({'status': 'ok'})
+        
+    except Exception as e:
+        print(f"❌ Track click error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/categories', methods=['GET'])
 @auth.login_required
