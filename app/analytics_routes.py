@@ -44,7 +44,8 @@ def analytics_dashboard():
             SELECT 
                 COUNT(DISTINCT session_id) as total_sessions,
                 COUNT(*) FILTER (WHERE event_type = 'query') as total_queries,
-                COUNT(*) FILTER (WHERE event_type = 'results') as total_results
+                COUNT(*) FILTER (WHERE event_type = 'results') as total_results,
+                COUNT(*) FILTER (WHERE event_type = 'product_click') as total_clicks
             FROM analytics_events
             WHERE timestamp >= %s
         """, (start_date,))
