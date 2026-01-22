@@ -349,6 +349,23 @@ def chat():
         'query_length': len(user_message)
     }, ensure_ascii=False))
     
+    # Log query su PostgreSQL
+    try:
+        import psycopg2
+        db_url = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+        if db_url:
+            conn = psycopg2.connect(db_url)
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO analytics_events (session_id, event_type, timestamp, data)
+                VALUES (%s, %s, %s, %s)
+            """, (session_hash, 'query', datetime.now(), json.dumps({'query': user_message})))
+            conn.commit()
+            cur.close()
+            conn.close()
+    except Exception as e:
+        print(f'⚠️ PostgreSQL query log error: {e}')
+    
     try:
         # 1. Recupera storia conversazione
         if session_id not in conversations:
@@ -501,6 +518,27 @@ def chat():
             'has_comparison': comparator_data is not None
         }, ensure_ascii=False))
         
+        # Log results su PostgreSQL
+        try:
+            import psycopg2
+            db_url = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+            if db_url:
+                conn = psycopg2.connect(db_url)
+                cur = conn.cursor()
+                cur.execute("""
+                    INSERT INTO analytics_events (session_id, event_type, timestamp, data)
+                    VALUES (%s, %s, %s, %s)
+                """, (session_hash, 'results', datetime.now(), json.dumps({
+                    'products_count': len(products_data),
+                    'top_products': [p['nome'] for p in products_data[:5]],
+                    'categories': list(set([p['categoria'] for p in products_data]))
+                })))
+                conn.commit()
+                cur.close()
+                conn.close()
+        except Exception as e:
+            print(f'⚠️ PostgreSQL results log error: {e}')
+        
         return jsonify({
             'response': response_text,
             'products': products_data,
@@ -519,6 +557,27 @@ def chat():
             'session': session_hash,
             'error': str(e)
         }, ensure_ascii=False))
+        
+        # Log results su PostgreSQL
+        try:
+            import psycopg2
+            db_url = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
+            if db_url:
+                conn = psycopg2.connect(db_url)
+                cur = conn.cursor()
+                cur.execute("""
+                    INSERT INTO analytics_events (session_id, event_type, timestamp, data)
+                    VALUES (%s, %s, %s, %s)
+                """, (session_hash, 'results', datetime.now(), json.dumps({
+                    'products_count': len(products_data),
+                    'top_products': [p['nome'] for p in products_data[:5]],
+                    'categories': list(set([p['categoria'] for p in products_data]))
+                })))
+                conn.commit()
+                cur.close()
+                conn.close()
+        except Exception as e:
+            print(f'⚠️ PostgreSQL results log error: {e}')
         
         return jsonify({'error': str(e)}), 500
 
