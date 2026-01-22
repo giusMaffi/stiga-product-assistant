@@ -22,9 +22,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.rag import ProductRetriever, ProductMatcher
 from src.api import ClaudeClient
 from src.config import PORT, FLASK_DEBUG
+from analytics_routes import analytics_bp
 
 app = Flask(__name__)
 CORS(app)
+app.register_blueprint(analytics_bp)
 
 # Setup HTTP Basic Authentication
 auth = HTTPBasicAuth()
