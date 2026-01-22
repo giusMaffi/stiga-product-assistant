@@ -15,6 +15,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import logging
 from datetime import datetime
 import hashlib
+import os
 
 # Aggiungi path al modulo
 sys.path.insert(0, str(Path(__file__).parent.parent))
