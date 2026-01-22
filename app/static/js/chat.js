@@ -338,7 +338,7 @@ function formatProductCards(products) {
                     ${product.categoria ? `<div class="product-category">${product.categoria}</div>` : ''}
                     <div class="product-description">${desc}</div>
                     ${product.prezzo ? `<div class="product-price">${product.prezzo}</div>` : ''}
-                    <a href="${product.url}" target="_blank" class="product-link" onclick="trackProductClick('${product.nome}', '${product.categoria || 'unknown'}')">
+                    <a href="${product.url}" target="_blank" class="product-link" onclick="trackProductClick('${product.id}', '${product.nome}', '${product.categoria || 'unknown'}')">
                         Scopri tutti i dettagli →
                     </a>
                 </div>
@@ -351,14 +351,28 @@ function formatProductCards(products) {
 }
 
 // Track product clicks
-function trackProductClick(productName, productCategory) {
-    trackEvent('product_clicked', {
+function trackProductClick(productId, productName, productCategory) {
+    // Umami tracking
+    trackEvent("product_clicked", {
         product_name: productName,
         product_category: productCategory,
-        language: document.getElementById('language-selector').value
+        language: document.getElementById("language-selector").value
     });
+    
+    // Backend tracking su PostgreSQL
+    fetch("/api/track-click", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Basic " + btoa("stiga:StigaDemo2025!")
+        },
+        body: JSON.stringify({
+            product_id: productId,
+            product_name: productName,
+            session_id: sessionId
+        })
+    }).catch(err => console.error("Track click error:", err));
 }
-
 // ===== EVENT LISTENERS =====
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();

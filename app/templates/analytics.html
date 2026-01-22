@@ -507,6 +507,12 @@
                 <div class="kpi-value">{{ kpis.total_results }}</div>
             </div>
         </div>
+            
+            <div class="kpi-card">
+                <div class="kpi-icon">🖱️</div>
+                <div class="kpi-label">Click Rate</div>
+                <div class="kpi-value">{{ "%.1f"|format((kpis.total_clicks / kpis.total_results * 100) if kpis.total_results > 0 else 0) }}%</div>
+            </div>
         
         <div class="chart-section">
             <div class="chart-header">
@@ -568,6 +574,25 @@
         </div>
         {% endif %}
         
+        
+        {% if top_clicked %}
+        <div class="chart-section">
+            <div class="chart-header">
+                <div class="chart-icon">🖱️</div>
+                <h2 class="chart-title">Prodotti Più Cliccati</h2>
+            </div>
+            <div class="categories-grid">
+                {% for item in top_clicked %}
+                <div class="category-card">
+                    <div class="category-name">{{ item.product_name }}</div>
+                    <div class="category-count">{{ item.click_count }}</div>
+                    <div class="category-label">click</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <footer>
             <div class="footer-content">
                 <p>Powered by <span class="footer-brand">IntentifAI</span> × STIGA</p>

@@ -202,6 +202,86 @@ def analytics_dashboard():
         
         categories = cur.fetchall()
         
+        # ===== TOP PRODOTTI CLICCATI =====
+        cur.execute("""
+            SELECT 
+                data->>'product_name' as product_name,
+                COUNT(*) as click_count
+            FROM analytics_events
+            WHERE event_type = 'product_click'
+                AND timestamp >= %s
+                AND data->>'product_name' IS NOT NULL
+            GROUP BY product_name
+            ORDER BY click_count DESC
+            LIMIT 10
+        """, (start_date,))
+        
+        top_clicked = cur.fetchall()
+        
+        # ===== TOP PRODOTTI CLICCATI =====
+        cur.execute("""
+            SELECT 
+                data->>'product_name' as product_name,
+                COUNT(*) as click_count
+            FROM analytics_events
+            WHERE event_type = 'product_click'
+                AND timestamp >= %s
+                AND data->>'product_name' IS NOT NULL
+            GROUP BY product_name
+            ORDER BY click_count DESC
+            LIMIT 10
+        """, (start_date,))
+        
+        top_clicked = cur.fetchall()
+        
+        # ===== TOP PRODOTTI CLICCATI =====
+        cur.execute("""
+            SELECT 
+                data->>'product_name' as product_name,
+                COUNT(*) as click_count
+            FROM analytics_events
+            WHERE event_type = 'product_click'
+                AND timestamp >= %s
+                AND data->>'product_name' IS NOT NULL
+            GROUP BY product_name
+            ORDER BY click_count DESC
+            LIMIT 10
+        """, (start_date,))
+        
+        top_clicked = cur.fetchall()
+        
+        # ===== TOP PRODOTTI CLICCATI =====
+        cur.execute("""
+            SELECT 
+                data->>'product_name' as product_name,
+                COUNT(*) as click_count
+            FROM analytics_events
+            WHERE event_type = 'product_click'
+                AND timestamp >= %s
+                AND data->>'product_name' IS NOT NULL
+            GROUP BY product_name
+            ORDER BY click_count DESC
+            LIMIT 10
+        """, (start_date,))
+        
+        top_clicked = cur.fetchall()
+        
+        # ===== TOP PRODOTTI CLICCATI =====
+        cur.execute("""
+            SELECT 
+                data->>'product_name' as product_name,
+                COUNT(*) as click_count
+            FROM analytics_events
+            WHERE event_type = 'product_click'
+                AND timestamp >= %s
+                AND data->>'product_name' IS NOT NULL
+            GROUP BY product_name
+            ORDER BY click_count DESC
+            LIMIT 10
+        """, (start_date,))
+        
+        top_clicked = cur.fetchall()
+        
         cur.close()
         conn.close()
         
@@ -212,6 +292,7 @@ def analytics_dashboard():
             queries_chart=queries_chart,
             products_chart=products_chart,
             categories=categories,
+            top_clicked=top_clicked,
             days=days
         )
         
