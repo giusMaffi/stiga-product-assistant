@@ -37,7 +37,7 @@ def analytics_dashboard():
         
         # Parametri periodo - date range selector
         days = int(request.args.get('days', 30))
-        start_date = datetime.now() - timedelta(days=days)
+        start_date = datetime.utcnow() - timedelta(days=days)
         
         # ===== KPI PRINCIPALI =====
         cur.execute("""
@@ -316,7 +316,7 @@ def get_conversations():
         # Parametri
         days = int(request.args.get('days', 30))
         limit = int(request.args.get('limit', 20))
-        start_date = datetime.now() - timedelta(days=days)
+        start_date = datetime.utcnow() - timedelta(days=days)
         
         # Ottieni tutte le sessioni con eventi
         cur.execute("""
