@@ -567,8 +567,11 @@ def track_product_click():
         if not session_id or not product_name:
             return jsonify({'error': 'Missing required fields'}), 400
         
+        # Hash session_id per privacy
+        session_hash = hashlib.md5(session_id.encode()).hexdigest()[:8]
+        
         success = analytics_tracker.log_product_click(
-            session_id=session_id,
+            session_id=session_hash,
             product_name=product_name,
             product_id=product_id,
             product_category=product_category,
@@ -595,8 +598,11 @@ def track_session_start():
         if not session_id:
             return jsonify({'error': 'Missing session_id'}), 400
         
+        # Hash session_id per privacy
+        session_hash = hashlib.md5(session_id.encode()).hexdigest()[:8]
+        
         analytics_tracker.log_session_start(
-            session_id=session_id,
+            session_id=session_hash,
             language=language,
             user_agent=user_agent
         )

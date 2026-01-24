@@ -48107,5 +48107,135 @@
       "scoppio"
     ],
     "tecnologie": []
+  },
+  {
+    "id": "2r7101428-st1-a-4",
+    "nome": "A 4",
+    "categoria": "Robot tagliaerba",
+    "url": "https://www.stiga.com/it/2r7101428-st1-a-4.html",
+    "descrizione": "Robot tagliaerba autonomo per giardini fino a 400 mq",
+    "prezzo": "899,00 €",
+    "immagini": [],
+    "specifiche_tecniche": {
+      "Area di taglio fino a": "400 mq"
+    }
+  },
+  {
+    "id": "2r7101528-st1-a-8",
+    "nome": "A 8",
+    "categoria": "Robot tagliaerba",
+    "url": "https://www.stiga.com/it/2r7101528-st1-a-8.html",
+    "descrizione": "Robot tagliaerba autonomo per giardini fino a 800 mq",
+    "prezzo": "1.099,00 €",
+    "immagini": [],
+    "specifiche_tecniche": {
+      "Area di taglio fino a": "800 mq"
+    }
+  },
+  {
+    "id": "2r7101128-st1-a-500",
+    "nome": "A 500",
+    "categoria": "Robot tagliaerba",
+    "url": "https://www.stiga.com/it/2r7101128-st1-a-500.html",
+    "descrizione": "Robot tagliaerba autonomo per giardini fino a 700 mq",
+    "prezzo": "1.099,00 €",
+    "immagini": [],
+    "specifiche_tecniche": {
+      "Area di taglio fino a": "700 mq"
+    }
+  },
+  {
+    "id": "2r7101228-st1-a-750",
+    "nome": "A 750",
+    "categoria": "Robot tagliaerba",
+    "url": "https://www.stiga.com/it/2r7101228-st1-a-750.html",
+    "descrizione": "Robot tagliaerba autonomo per giardini fino a 900 mq",
+    "prezzo": "1.299,00 €",
+    "immagini": [],
+    "specifiche_tecniche": {
+      "Area di taglio fino a": "900 mq"
+    }
+  },
+  {
+    "id": "2r7101028-st2-stiga-a-1000",
+    "nome": "A 1000",
+    "categoria": "Robot tagliaerba",
+    "url": "https://www.stiga.com/it/2r7101028-st2-stiga-a-1000.html",
+    "descrizione": "Robot tagliaerba autonomo per giardini fino a 1400 mq",
+    "prezzo": "1.599,00 €",
+    "immagini": [],
+    "specifiche_tecniche": {
+      "Area di taglio fino a": "1400 mq"
+    }
+  },
+  {
+    "id": "2r7102028-st1-stiga-a-1500",
+    "nome": "A 1500",
+    "categoria": "Robot tagliaerba",
+    "url": "https://www.stiga.com/it/2r7102028-st1-stiga-a-1500.html",
+    "descrizione": "Robot tagliaerba autonomo per giardini fino a 2500 mq",
+    "prezzo": "1.999,00 €",
+    "immagini": [],
+    "specifiche_tecniche": {
+      "Area di taglio fino a": "2500 mq"
+    }
+  },
+  {
+    "id": "2r9102028-st1-stiga-a-3000",
+    "nome": "A 3000",
+    "categoria": "Robot tagliaerba",
+    "url": "https://www.stiga.com/it/2r9102028-st1-stiga-a-3000.html",
+    "descrizione": "Robot tagliaerba autonomo per giardini fino a 4500 mq",
+    "prezzo": "2.499,00 €",
+    "immagini": [],
+    "specifiche_tecniche": {
+      "Area di taglio fino a": "4500 mq"
+    }
+  },
+  {
+    "id": "2r9106028-st1-stiga-a-5000",
+    "nome": "A 5000",
+    "categoria": "Robot tagliaerba",
+    "url": "https://www.stiga.com/it/2r9106028-st1-stiga-a-5000.html",
+    "descrizione": "Robot tagliaerba autonomo per giardini fino a 7000 mq",
+    "prezzo": "2.799,00 €",
+    "immagini": [],
+    "specifiche_tecniche": {
+      "Area di taglio fino a": "7000 mq"
+    }
+  },
+  {
+    "id": "2r9106128-st1-a-7500",
+    "nome": "A 7500",
+    "categoria": "Robot tagliaerba",
+    "url": "https://www.stiga.com/it/2r9106128-st1-a-7500.html",
+    "descrizione": "Robot tagliaerba autonomo per giardini fino a 9000 mq",
+    "prezzo": "3.399,00 €",
+    "immagini": [],
+    "specifiche_tecniche": {
+      "Area di taglio fino a": "9000 mq"
+    }
+  },
+  {
+    "id": "2r9106228-st1-a-10000",
+    "nome": "A 10000",
+    "categoria": "Robot tagliaerba",
+    "url": "https://www.stiga.com/it/2r9106228-st1-a-10000.html",
+    "descrizione": "Robot tagliaerba autonomo per giardini fino a 12000 mq",
+    "prezzo": "Contattaci",
+    "immagini": [],
+    "specifiche_tecniche": {
+      "Area di taglio fino a": "12000 mq"
+    }
+  },
+  {
+    "id": "2r9114028-st1-a-140v",
+    "nome": "A 140v",
+    "categoria": "Robot tagliaerba",
+    "url": "https://www.stiga.com/it/prodotti/2r9114028-st1-a-140v.html",
+    "descrizione": "Robot tagliaerba GPS-RTK per grandi giardini",
+    "prezzo": "Contattaci",
+    "immagini": [],
+    "specifiche_tecniche": {}
   }
 ]
