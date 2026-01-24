@@ -6,7 +6,6 @@ from flask import Blueprint, render_template, jsonify
 from app.analytics_tracker import get_tracker
 import psycopg2
 import os
-from datetime import datetime, timedelta
 
 analytics_bp = Blueprint('analytics', __name__)
 
@@ -33,21 +32,25 @@ def analytics_dashboard():
         
         cur = conn.cursor()
         
-        # ===== KPI PRINCIPALI =====
+        # ===== KPI PRINCIPALI (nomi corretti per template) =====
         
-        # Conversazioni totali
-        cur.execute("SELECT COUNT(DISTINCT session_id) FROM analytics_queries")
-        total_conversations = cur.fetchone()[0] or 0
+        # Total sessions
+        cur.execute("SELECT COUNT(DISTINCT session_id) FROM analytics_sessions")
+        total_sessions = cur.fetchone()[0] or 0
         
-        # Query utenti totali
+        # Total queries
         cur.execute("SELECT COUNT(*) FROM analytics_queries")
         total_queries = cur.fetchone()[0] or 0
         
-        # Risposte generate
+        # Total results
         cur.execute("SELECT COUNT(*) FROM analytics_results")
-        total_responses = cur.fetchone()[0] or 0
+        total_results = cur.fetchone()[0] or 0
         
-        # Click rate (usa la nuova formula)
+        # Total clicks
+        cur.execute("SELECT COUNT(*) FROM analytics_clicks")
+        total_clicks = cur.fetchone()[0] or 0
+        
+        # CTR corretto
         ctr = tracker.get_click_through_rate()
         
         # Engagement rate
@@ -74,7 +77,7 @@ def analytics_dashboard():
             ORDER BY clicks DESC
             LIMIT 10
         """)
-        top_products = [{'name': row[0], 'clicks': row[1]} for row in cur.fetchall()]
+        top_products = [{'product_name': row[0], 'click_count': row[1]} for row in cur.fetchall()]
         
         # ===== CATEGORIE RICERCATE =====
         cur.execute("""
@@ -87,23 +90,33 @@ def analytics_dashboard():
         """)
         top_categories = [{'category': row[0], 'count': row[1]} for row in cur.fetchall()]
         
-        # ===== CTR GIORNALIERO (ultimi 7 giorni) =====
-        daily_ctr_data = tracker.get_daily_ctr(days=7)
-        
         cur.close()
         conn.close()
         
+        # KPIs per template
+        kpis = {
+            'total_sessions': total_sessions,
+            'total_queries': total_queries,
+            'total_results': total_results,
+            'total_clicks': total_clicks,
+            'ctr': ctr,
+            'engagement_rate': engagement_rate,
+            'clicks_per_session': clicks_per_session
+        }
+        
+        # Charts placeholder (per ora vuoti, il template li gestirà)
+        trend_chart = ""
+        queries_chart = ""
+        products_chart = ""
+        
         return render_template('analytics.html',
-            total_conversations=total_conversations,
-            total_queries=total_queries,
-            total_responses=total_responses,
-            ctr=ctr,
-            engagement_rate=engagement_rate,
-            clicks_per_session=clicks_per_session,
+            kpis=kpis,
             top_queries=top_queries,
             top_products=top_products,
             top_categories=top_categories,
-            daily_ctr_data=daily_ctr_data
+            trend_chart=trend_chart,
+            queries_chart=queries_chart,
+            products_chart=products_chart
         )
         
     except Exception as e:
@@ -124,9 +137,8 @@ def get_stats():
         
         cur = conn.cursor()
         
-        # Stats base
-        cur.execute("SELECT COUNT(DISTINCT session_id) FROM analytics_queries")
-        conversations = cur.fetchone()[0] or 0
+        cur.execute("SELECT COUNT(DISTINCT session_id) FROM analytics_sessions")
+        sessions = cur.fetchone()[0] or 0
         
         cur.execute("SELECT COUNT(*) FROM analytics_queries")
         queries = cur.fetchone()[0] or 0
@@ -134,7 +146,6 @@ def get_stats():
         cur.execute("SELECT COUNT(*) FROM analytics_clicks")
         clicks = cur.fetchone()[0] or 0
         
-        # Metriche avanzate
         ctr = tracker.get_click_through_rate()
         engagement = tracker.get_engagement_rate()
         clicks_per_session = tracker.get_clicks_per_active_session()
@@ -143,7 +154,7 @@ def get_stats():
         conn.close()
         
         return jsonify({
-            'conversations': conversations,
+            'sessions': sessions,
             'queries': queries,
             'clicks': clicks,
             'ctr': ctr,
