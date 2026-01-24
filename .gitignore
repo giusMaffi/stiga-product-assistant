@@ -20,3 +20,12 @@ __pycache__/
 # Logs
 logs/
 *.log
+# File temporanei
+*.backup*
+fix_*.py
+add_*.py
+update_*.py
+rebuild_*.py
+remove_*.py
+setup_*.py
+check_*.py
