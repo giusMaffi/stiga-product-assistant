@@ -56,6 +56,19 @@ class ProductRetriever:
             data = pickle.load(f)
             self.embeddings = data['embeddings']
             self.model_name = data['model_name']
+            
+            # CRITICAL: Usa product_ids per mappare embeddings → prodotti
+            if 'product_ids' in data:
+                self.product_ids = data['product_ids']
+                # Crea mappatura product_id → indice embedding
+                self.id_to_embedding_idx = {pid: i for i, pid in enumerate(self.product_ids)}
+                # Crea mappatura product_id → prodotto
+                self.id_to_product = {p['id']: p for p in self.products}
+                print(f"✅ Mappatura product_ids caricata: {len(self.product_ids)} prodotti")
+            else:
+                # Fallback: assume ordine array (vecchio comportamento)
+                print("⚠️ WARNING: product_ids non trovato, uso ordine array")
+                self.product_ids = None
         
         # Carica modello per query encoding
         self.model = SentenceTransformer(EMBEDDING_MODEL)
@@ -148,7 +161,14 @@ class ProductRetriever:
             if score < min_score:
                 continue
                 
-            product = self.products[idx]
+            # Usa mappatura product_ids se disponibile
+            if self.product_ids:
+                product_id = self.product_ids[idx]
+                product = self.id_to_product.get(product_id)
+                if not product:
+                    continue  # Skip se prodotto non trovato
+            else:
+                product = self.products[idx]  # Fallback vecchio comportamento
             
             # Applica filtri se presenti
             if filters:

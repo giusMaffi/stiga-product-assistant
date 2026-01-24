@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Genera embeddings per tutti i prodotti
+Genera embeddings per tutti i prodotti - CON PRODUCT_IDS
 """
 
 import sys
@@ -19,46 +19,38 @@ PRODUCTS_PATH = Path(__file__).parent.parent / 'data' / 'stiga_products.json'
 OUTPUT_PATH = Path(__file__).parent.parent / 'data' / 'embeddings' / 'products_embeddings.pkl'
 
 def create_product_text(product: dict) -> str:
-    """
-    Crea testo completo per embedding
-    
-    IMPORTANTE: Usa descrizione_completa (non descrizione breve) 
-    per massimizzare qualità retrieval
-    """
+    """Crea testo completo per embedding"""
     parts = []
     
     # Nome
     if product.get('nome'):
         parts.append(product['nome'])
     
-    # Categoria
+    # Categoria (ripetuta 2 volte per boost)
     if product.get('categoria'):
-        parts.append(f"Categoria: {product['categoria']}")
+        categoria = product['categoria']
+        parts.append(f"{categoria} {categoria}")
     
-    # Descrizione COMPLETA (non troncata!)
-    # Usa descrizione_completa se disponibile, altrimenti descrizione
+    # Descrizione COMPLETA
     descrizione = product.get('descrizione_completa') or product.get('descrizione', '')
     if descrizione:
         parts.append(descrizione)
     
     # Caratteristiche
     if product.get('caratteristiche'):
-        # Supporta sia lista di stringhe che lista di dizionari
         caratteristiche = product['caratteristiche']
         if caratteristiche and isinstance(caratteristiche[0], dict):
-            # Nuovo formato: lista di {titolo, descrizione}
             chars_text = ". ".join([f"{c['titolo']}: {c['descrizione']}" for c in caratteristiche])
         else:
-            # Vecchio formato: lista di stringhe
             chars_text = ", ".join(caratteristiche)
         parts.append("Caratteristiche: " + chars_text)
     
-    # Specifiche tecniche (TUTTE, non solo le importanti)
+    # Specifiche tecniche
     specs = product.get('specifiche_tecniche', {})
     if specs:
         specs_text = []
         for key, value in specs.items():
-            if value:  # Solo se non vuoto
+            if value:
                 specs_text.append(f"{key}: {value}")
         
         if specs_text:
@@ -68,7 +60,7 @@ def create_product_text(product: dict) -> str:
     if product.get('keywords'):
         parts.append("Keywords: " + ", ".join(product['keywords']))
     
-    # Prezzo (importante per query tipo "economico", "budget")
+    # Prezzo
     if product.get('prezzo'):
         parts.append(f"Prezzo: {product['prezzo']}")
     
@@ -76,13 +68,12 @@ def create_product_text(product: dict) -> str:
 
 def main():
     print("="*70)
-    print("🚀 GENERAZIONE EMBEDDINGS PRODOTTI STIGA")
+    print("🚀 GENERAZIONE EMBEDDINGS PRODOTTI STIGA - FIXED")
     print("="*70)
     print()
     
     # Carica modello
     print(f"📦 Caricamento modello: {MODEL_NAME}")
-    print("   (Questo può richiedere alcuni minuti al primo avvio...)")
     model = SentenceTransformer(MODEL_NAME)
     print("✅ Modello caricato!")
     print()
@@ -98,25 +89,15 @@ def main():
     # Genera embeddings
     print("🔄 Generazione embeddings...")
     texts = []
-    prodotti_con_descrizione_completa = 0
-    prodotti_con_descrizione_breve = 0
     
     for product in tqdm(products, desc="Preparazione testi"):
-        # Statistiche su quale descrizione usiamo
-        if product.get('descrizione_completa'):
-            prodotti_con_descrizione_completa += 1
-        else:
-            prodotti_con_descrizione_breve += 1
-        
         text = create_product_text(product)
         texts.append(text)
     
     print(f"✅ Preparati {len(texts)} testi")
-    print(f"   - Con descrizione completa: {prodotti_con_descrizione_completa}")
-    print(f"   - Con descrizione breve: {prodotti_con_descrizione_breve}")
     print()
     
-    print("🧠 Encoding con modello (può richiedere qualche minuto)...")
+    print("🧠 Encoding con modello...")
     embeddings = model.encode(texts, show_progress_bar=True, batch_size=32)
     
     print(f"✅ Generati {len(embeddings)} embeddings")
@@ -126,11 +107,12 @@ def main():
     # Crea directory output se non esiste
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     
-    # Salva embeddings
+    # Salva embeddings CON PRODUCT_IDS
     print(f"💾 Salvataggio embeddings in: {OUTPUT_PATH}")
     
     data_to_save = {
         'embeddings': embeddings,
+        'product_ids': [p['id'] for p in products],  # CRITICAL FIX!
         'model_name': MODEL_NAME,
         'num_products': len(products),
         'embedding_dim': embeddings.shape[1]
@@ -142,11 +124,11 @@ def main():
     print("✅ Embeddings salvati con successo!")
     print()
     
-    # Statistiche
     print("="*70)
     print("📊 STATISTICHE")
     print("="*70)
     print(f"Prodotti processati: {len(products)}")
+    print(f"Product IDs salvati: {len(data_to_save['product_ids'])}")
     print(f"Embeddings generati: {len(embeddings)}")
     print(f"Dimensione embeddings: {embeddings.shape[1]}")
     print(f"Modello utilizzato: {MODEL_NAME}")
@@ -156,9 +138,6 @@ def main():
     print("="*70)
     print("🎉 GENERAZIONE COMPLETATA!")
     print("="*70)
-    print()
-    print("Ora puoi avviare l'app con: python app/app.py")
-    print()
 
 if __name__ == '__main__':
     main()
