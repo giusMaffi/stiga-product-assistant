@@ -1,26 +1,22 @@
 """
 Analytics Dashboard Routes
-Modulo separato per analytics - zero impatto su app principale
+Dashboard completo con metriche PostgreSQL native
 """
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify
+from app.analytics_tracker import get_tracker
 import psycopg2
-from psycopg2.extras import RealDictCursor
-import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
 import os
-from collections import defaultdict
-import json
+from datetime import datetime, timedelta
 
 analytics_bp = Blueprint('analytics', __name__)
 
 def get_db_connection():
-    """Connessione PostgreSQL con fallback"""
+    """Connessione PostgreSQL"""
     try:
         db_url = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
         if not db_url:
             return None
-        return psycopg2.connect(db_url, cursor_factory=RealDictCursor)
+        return psycopg2.connect(db_url)
     except Exception as e:
         print(f"⚠️ DB connection error: {e}")
         return None
@@ -30,373 +26,131 @@ def analytics_dashboard():
     """Dashboard analytics principale"""
     try:
         conn = get_db_connection()
+        tracker = get_tracker()
+        
         if not conn:
             return "Database non disponibile", 503
         
         cur = conn.cursor()
         
-        # Parametri periodo - date range selector
-        days = int(request.args.get('days', 30))
-        start_date = datetime.utcnow() - timedelta(days=days)
-        
         # ===== KPI PRINCIPALI =====
-        cur.execute("""
-            SELECT 
-                COUNT(DISTINCT session_id) as total_sessions,
-                COUNT(*) FILTER (WHERE event_type = 'query') as total_queries,
-                COUNT(*) FILTER (WHERE event_type = 'results') as total_results,
-                COUNT(*) FILTER (WHERE event_type = 'product_click') as total_clicks
-            FROM analytics_events
-            WHERE timestamp >= %s
-        """, (start_date,))
         
-        kpis = cur.fetchone()
+        # Conversazioni totali
+        cur.execute("SELECT COUNT(DISTINCT session_id) FROM analytics_queries")
+        total_conversations = cur.fetchone()[0] or 0
         
-        # ===== TREND GIORNALIERO =====
-        cur.execute("""
-            SELECT 
-                DATE(timestamp) as date,
-                COUNT(DISTINCT session_id) as sessions,
-                COUNT(*) FILTER (WHERE event_type = 'query') as queries
-            FROM analytics_events
-            WHERE timestamp >= %s
-            GROUP BY DATE(timestamp)
-            ORDER BY date
-        """, (start_date,))
+        # Query utenti totali
+        cur.execute("SELECT COUNT(*) FROM analytics_queries")
+        total_queries = cur.fetchone()[0] or 0
         
-        daily_data = cur.fetchall()
+        # Risposte generate
+        cur.execute("SELECT COUNT(*) FROM analytics_results")
+        total_responses = cur.fetchone()[0] or 0
         
-        # Grafico trend
-        if daily_data:
-            dates = [row['date'].strftime('%Y-%m-%d') for row in daily_data]
-            sessions = [row['sessions'] for row in daily_data]
-            
-            fig_trend = go.Figure()
-            fig_trend.add_trace(go.Scatter(
-                x=dates, 
-                y=sessions,
-                mode='lines+markers',
-                name='Conversazioni',
-                line=dict(color='#00C853', width=3),
-                marker=dict(size=8)
-            ))
-            
-            fig_trend.update_layout(
-                template='plotly_dark',
-                height=350,
-                margin=dict(l=0, r=0, t=20, b=0),
-                xaxis_title="Data",
-                yaxis_title="Conversazioni",
-                hovermode='x unified'
-            )
-            
-            trend_chart = fig_trend.to_html(include_plotlyjs='cdn', div_id='trend-chart')
-        else:
-            trend_chart = "<p>Nessun dato disponibile</p>"
+        # Click rate (usa la nuova formula)
+        ctr = tracker.get_click_through_rate()
+        
+        # Engagement rate
+        engagement_rate = tracker.get_engagement_rate()
+        
+        # Click per sessione attiva
+        clicks_per_session = tracker.get_clicks_per_active_session()
         
         # ===== TOP QUERIES =====
         cur.execute("""
-            SELECT 
-                data->>'query' as query,
-                COUNT(*) as count
-            FROM analytics_events
-            WHERE event_type = 'query' 
-                AND timestamp >= %s
-                AND data->>'query' IS NOT NULL
+            SELECT query, COUNT(*) as count
+            FROM analytics_queries
             GROUP BY query
             ORDER BY count DESC
             LIMIT 10
-        """, (start_date,))
+        """)
+        top_queries = [{'query': row[0], 'count': row[1]} for row in cur.fetchall()]
         
-        top_queries = cur.fetchall()
-        
-        # Grafico queries
-        if top_queries:
-            queries = [row['query'][:50] + '...' if len(row['query']) > 50 else row['query'] for row in top_queries]
-            counts = [row['count'] for row in top_queries]
-            
-            fig_queries = go.Figure(go.Bar(
-                x=counts,
-                y=queries,
-                orientation='h',
-                marker=dict(
-                    color=counts,
-                    colorscale='Greens',
-                    showscale=False
-                ),
-                text=counts,
-                textposition='auto'
-            ))
-            
-            fig_queries.update_layout(
-                template='plotly_dark',
-                height=400,
-                margin=dict(l=0, r=0, t=20, b=0),
-                xaxis_title="Numero ricerche",
-                yaxis_title="",
-                yaxis={'categoryorder': 'total ascending'}
-            )
-            
-            queries_chart = fig_queries.to_html(include_plotlyjs=False, div_id='queries-chart')
-        else:
-            queries_chart = "<p>Nessuna query registrata</p>"
-        
-        # ===== TOP PRODOTTI MOSTRATI =====
+        # ===== TOP PRODOTTI CLICCATI =====
         cur.execute("""
-            SELECT 
-                product,
-                COUNT(*) as shown_count
-            FROM analytics_events,
-                jsonb_array_elements_text(data->'top_products') as product
-            WHERE event_type = 'results'
-                AND timestamp >= %s
-            GROUP BY product
-            ORDER BY shown_count DESC
+            SELECT product_name, COUNT(*) as clicks
+            FROM analytics_clicks
+            GROUP BY product_name
+            ORDER BY clicks DESC
             LIMIT 10
-        """, (start_date,))
+        """)
+        top_products = [{'name': row[0], 'clicks': row[1]} for row in cur.fetchall()]
         
-        top_products = cur.fetchall()
-        
-        # Grafico prodotti
-        if top_products:
-            products = [row['product'] for row in top_products]
-            counts = [row['shown_count'] for row in top_products]
-            
-            fig_products = go.Figure(go.Bar(
-                x=counts,
-                y=products,
-                orientation='h',
-                marker=dict(
-                    color=counts,
-                    colorscale='Viridis',
-                    showscale=False
-                ),
-                text=counts,
-                textposition='auto'
-            ))
-            
-            fig_products.update_layout(
-                template='plotly_dark',
-                height=400,
-                margin=dict(l=0, r=0, t=20, b=0),
-                xaxis_title="Volte mostrato",
-                yaxis_title="",
-                yaxis={'categoryorder': 'total ascending'}
-            )
-            
-            products_chart = fig_products.to_html(include_plotlyjs=False, div_id='products-chart')
-        else:
-            products_chart = "<p>Nessun prodotto mostrato</p>"
-        
-        # ===== CATEGORIE =====
+        # ===== CATEGORIE RICERCATE =====
         cur.execute("""
-            SELECT 
-                category,
-                COUNT(*) as count
-            FROM analytics_events,
-                jsonb_array_elements_text(data->'categories') as category
-            WHERE event_type = 'results'
-                AND timestamp >= %s
+            SELECT UNNEST(categories) as category, COUNT(*) as count
+            FROM analytics_results
+            WHERE categories IS NOT NULL AND array_length(categories, 1) > 0
             GROUP BY category
             ORDER BY count DESC
-        """, (start_date,))
-        
-        categories = cur.fetchall()
-        
-        # ===== TOP PRODOTTI CLICCATI =====
-        cur.execute("""
-            SELECT 
-                data->>'product_name' as product_name,
-                COUNT(*) as click_count
-            FROM analytics_events
-            WHERE event_type = 'product_click'
-                AND timestamp >= %s
-                AND data->>'product_name' IS NOT NULL
-            GROUP BY product_name
-            ORDER BY click_count DESC
             LIMIT 10
-        """, (start_date,))
+        """)
+        top_categories = [{'category': row[0], 'count': row[1]} for row in cur.fetchall()]
         
-        top_clicked = cur.fetchall()
-        
-        # ===== TOP PRODOTTI CLICCATI =====
-        cur.execute("""
-            SELECT 
-                data->>'product_name' as product_name,
-                COUNT(*) as click_count
-            FROM analytics_events
-            WHERE event_type = 'product_click'
-                AND timestamp >= %s
-                AND data->>'product_name' IS NOT NULL
-            GROUP BY product_name
-            ORDER BY click_count DESC
-            LIMIT 10
-        """, (start_date,))
-        
-        top_clicked = cur.fetchall()
-        
-        # ===== TOP PRODOTTI CLICCATI =====
-        cur.execute("""
-            SELECT 
-                data->>'product_name' as product_name,
-                COUNT(*) as click_count
-            FROM analytics_events
-            WHERE event_type = 'product_click'
-                AND timestamp >= %s
-                AND data->>'product_name' IS NOT NULL
-            GROUP BY product_name
-            ORDER BY click_count DESC
-            LIMIT 10
-        """, (start_date,))
-        
-        top_clicked = cur.fetchall()
-        
-        # ===== TOP PRODOTTI CLICCATI =====
-        cur.execute("""
-            SELECT 
-                data->>'product_name' as product_name,
-                COUNT(*) as click_count
-            FROM analytics_events
-            WHERE event_type = 'product_click'
-                AND timestamp >= %s
-                AND data->>'product_name' IS NOT NULL
-            GROUP BY product_name
-            ORDER BY click_count DESC
-            LIMIT 10
-        """, (start_date,))
-        
-        top_clicked = cur.fetchall()
-        
-        # ===== TOP PRODOTTI CLICCATI =====
-        cur.execute("""
-            SELECT 
-                data->>'product_name' as product_name,
-                COUNT(*) as click_count
-            FROM analytics_events
-            WHERE event_type = 'product_click'
-                AND timestamp >= %s
-                AND data->>'product_name' IS NOT NULL
-            GROUP BY product_name
-            ORDER BY click_count DESC
-            LIMIT 10
-        """, (start_date,))
-        
-        top_clicked = cur.fetchall()
+        # ===== CTR GIORNALIERO (ultimi 7 giorni) =====
+        daily_ctr_data = tracker.get_daily_ctr(days=7)
         
         cur.close()
         conn.close()
         
-        # Render template
         return render_template('analytics.html',
-            kpis=kpis,
-            trend_chart=trend_chart,
-            queries_chart=queries_chart,
-            products_chart=products_chart,
-            categories=categories,
-            top_clicked=top_clicked,
-            days=days
+            total_conversations=total_conversations,
+            total_queries=total_queries,
+            total_responses=total_responses,
+            ctr=ctr,
+            engagement_rate=engagement_rate,
+            clicks_per_session=clicks_per_session,
+            top_queries=top_queries,
+            top_products=top_products,
+            top_categories=top_categories,
+            daily_ctr_data=daily_ctr_data
         )
         
     except Exception as e:
-        print(f"❌ Analytics error: {e}")
+        print(f"❌ Analytics dashboard error: {e}")
         import traceback
         traceback.print_exc()
-        return f"Errore analytics: {e}", 500
+        return f"Errore: {str(e)}", 500
 
-@analytics_bp.route('/api/analytics/conversations')
-def get_conversations():
-    """Ottieni conversazioni recenti raggruppate per session"""
+@analytics_bp.route('/analytics/api/stats')
+def get_stats():
+    """API endpoint per statistiche real-time"""
     try:
         conn = get_db_connection()
+        tracker = get_tracker()
+        
         if not conn:
-            return jsonify({'error': 'DB not available'}), 503
+            return jsonify({'error': 'Database non disponibile'}), 503
         
         cur = conn.cursor()
         
-        # Parametri
-        days = int(request.args.get('days', 30))
-        limit = int(request.args.get('limit', 20))
-        start_date = datetime.utcnow() - timedelta(days=days)
+        # Stats base
+        cur.execute("SELECT COUNT(DISTINCT session_id) FROM analytics_queries")
+        conversations = cur.fetchone()[0] or 0
         
-        # Ottieni tutte le sessioni con eventi
-        cur.execute("""
-            SELECT 
-                session_id,
-                MIN(timestamp) as first_seen,
-                MAX(timestamp) as last_seen,
-                COUNT(*) as event_count,
-                json_agg(
-                    json_build_object(
-                        'type', event_type,
-                        'timestamp', timestamp,
-                        'data', data
-                    ) ORDER BY timestamp
-                ) as events
-            FROM analytics_events
-            WHERE timestamp >= %s
-            GROUP BY session_id
-            ORDER BY last_seen DESC
-            LIMIT %s
-        """, (start_date, limit))
+        cur.execute("SELECT COUNT(*) FROM analytics_queries")
+        queries = cur.fetchone()[0] or 0
         
-        sessions = cur.fetchall()
+        cur.execute("SELECT COUNT(*) FROM analytics_clicks")
+        clicks = cur.fetchone()[0] or 0
         
-        # Formatta conversazioni
-        conversations = []
-        for session in sessions:
-            # Estrai query e results
-            messages = []
-            for event in session['events']:
-                if event['type'] == 'query':
-                    messages.append({
-                        'role': 'user',
-                        'content': event['data'].get('query', ''),
-                        'timestamp': event['timestamp']
-                    })
-                elif event['type'] == 'results':
-                    messages.append({
-                        'role': 'assistant',
-                        'products_count': event['data'].get('products_count', 0),
-                        'products': event['data'].get('top_products', [])[:3],  # Top 3
-                        'timestamp': event['timestamp']
-                    })
-            
-            conversations.append({
-                'session_id': session['session_id'][:8],  # Short ID
-                'first_seen': session['first_seen'].isoformat(),
-                'last_seen': session['last_seen'].isoformat(),
-                'message_count': len(messages),
-                'messages': messages
-            })
+        # Metriche avanzate
+        ctr = tracker.get_click_through_rate()
+        engagement = tracker.get_engagement_rate()
+        clicks_per_session = tracker.get_clicks_per_active_session()
         
-        cur.close()
-        conn.close()
-        
-        return jsonify({'conversations': conversations})
-        
-    except Exception as e:
-        print(f"❌ Conversations API error: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
-
-@analytics_bp.route('/api/analytics/health')
-def analytics_health():
-    """Health check per analytics"""
-    try:
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({'status': 'error', 'message': 'DB not available'}), 503
-        
-        cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) as count FROM analytics_events")
-        result = cur.fetchone()
         cur.close()
         conn.close()
         
         return jsonify({
-            'status': 'ok',
-            'total_events': result['count']
+            'conversations': conversations,
+            'queries': queries,
+            'clicks': clicks,
+            'ctr': ctr,
+            'engagement_rate': engagement,
+            'clicks_per_session': clicks_per_session
         })
+        
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        print(f"❌ Stats API error: {e}")
+        return jsonify({'error': str(e)}), 500
