@@ -1,10 +1,9 @@
 """
-Claude API Client
+Claude API Client with Prompt Caching
 """
 import anthropic
 from typing import List, Dict, Tuple
 from ..config import ANTHROPIC_API_KEY, MODEL_NAME, MAX_TOKENS, MODEL_TEMPERATURE, SYSTEM_PROMPT
-
 
 class ClaudeClient:
     """Client per interagire con Claude API"""
@@ -29,7 +28,6 @@ class ClaudeClient:
         products_for_context = []
         
         for item in products_with_scores:
-            # Handle sia tuple a 2 che a 3 elementi
             if len(item) == 2:
                 product, score = item
                 reasons = []
@@ -57,7 +55,7 @@ class ClaudeClient:
         products_context: str = None
     ) -> str:
         """
-        Invia messaggio a Claude
+        Invia messaggio a Claude con prompt caching
         
         Args:
             user_message: Messaggio utente
@@ -90,14 +88,23 @@ RICORDA: Usa gli ID COMPLETI esatti dal JSON sopra nel tag <prodotti>."""
             'content': content
         })
         
-        # Chiamata API
+        # PROMPT CACHING: System prompt viene cachato
         response = self.client.messages.create(
             model=self.model,
             max_tokens=MAX_TOKENS,
             temperature=MODEL_TEMPERATURE,
-            system=SYSTEM_PROMPT,
+            system=[
+                {
+                    "type": "text",
+                    "text": SYSTEM_PROMPT,
+                    "cache_control": {"type": "ephemeral"}
+                }
+            ],
             messages=messages
         )
         
-        # Estrai testo risposta
+        # Log usage per monitoring
+        usage = response.usage
+        print(f"📊 Tokens - Input: {usage.input_tokens} | Cached: {getattr(usage, 'cache_read_input_tokens', 0)} | Output: {usage.output_tokens}")
+        
         return response.content[0].text

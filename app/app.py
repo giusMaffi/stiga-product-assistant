@@ -351,7 +351,9 @@ def chat():
         'session': session_hash,
         'query': user_message,
         'query_length': len(user_message)
-    }, ensure_ascii=False))try:
+    }, ensure_ascii=False))
+    
+    try:
         # 1. Recupera storia conversazione
         if session_id not in conversations:
             conversations[session_id] = {
