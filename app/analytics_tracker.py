@@ -222,6 +222,79 @@ class AnalyticsTracker:
             print(f"❌ Daily CTR error: {e}")
             return []
     
+
+    def get_date_range_stats(self, start_date: str, end_date: str) -> list:
+        """Ottieni statistiche giornaliere per un range di date"""
+        try:
+            cur = self.conn.cursor()
+            cur.execute("""
+                SELECT 
+                    date, total_sessions, total_queries, total_products_shown,
+                    total_clicks, ctr_percent, engagement_rate, avg_products_per_session
+                FROM analytics_daily_stats
+                WHERE date BETWEEN %s AND %s
+                ORDER BY date DESC
+            """, (start_date, end_date))
+            
+            columns = ['date', 'total_sessions', 'total_queries', 'total_products_shown', 
+                      'total_clicks', 'ctr_percent', 'engagement_rate', 'avg_products_per_session']
+            return [dict(zip(columns, row)) for row in cur.fetchall()]
+        except Exception as e:
+            print(f"❌ Error getting date range stats: {e}")
+            return []
+    
+    def get_top_queries_range(self, start_date: str, end_date: str, limit: int = 10) -> list:
+        """Top queries aggregate per un range di date"""
+        try:
+            cur = self.conn.cursor()
+            cur.execute("""
+                SELECT query, SUM(count) as total_count
+                FROM analytics_top_queries_daily
+                WHERE date BETWEEN %s AND %s
+                GROUP BY query
+                ORDER BY total_count DESC
+                LIMIT %s
+            """, (start_date, end_date, limit))
+            return [{'query': row[0], 'count': row[1]} for row in cur.fetchall()]
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            return []
+    
+    def get_top_products_range(self, start_date: str, end_date: str, limit: int = 10) -> list:
+        """Top products aggregate per un range di date"""
+        try:
+            cur = self.conn.cursor()
+            cur.execute("""
+                SELECT product_name, product_category, SUM(clicks) as total_clicks
+                FROM analytics_top_products_daily
+                WHERE date BETWEEN %s AND %s
+                GROUP BY product_name, product_category
+                ORDER BY total_clicks DESC
+                LIMIT %s
+            """, (start_date, end_date, limit))
+            return [{'product_name': row[0], 'category': row[1], 'clicks': row[2]} 
+                    for row in cur.fetchall()]
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            return []
+    
+    def get_top_categories_range(self, start_date: str, end_date: str, limit: int = 10) -> list:
+        """Top categories aggregate per un range di date"""
+        try:
+            cur = self.conn.cursor()
+            cur.execute("""
+                SELECT category, SUM(count) as total_count
+                FROM analytics_top_categories_daily
+                WHERE date BETWEEN %s AND %s
+                GROUP BY category
+                ORDER BY total_count DESC
+                LIMIT %s
+            """, (start_date, end_date, limit))
+            return [{'category': row[0], 'count': row[1]} for row in cur.fetchall()]
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            return []
+
     def __del__(self):
         """Chiudi connessione"""
         if self.conn:
