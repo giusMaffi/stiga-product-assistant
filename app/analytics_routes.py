@@ -50,6 +50,12 @@ def analytics_dashboard():
             'total_clicks': total_clicks,
             'ctr_percent': avg_ctr
         }
+
+        # Conversazioni del periodo
+        conversations = tracker.get_conversations_in_range(
+            date_from.isoformat(),
+            date_to.isoformat()
+        )
         
         top_queries = tracker.get_top_queries_range(date_from.isoformat(), date_to.isoformat(), 10)
         top_products = tracker.get_top_products_range(date_from.isoformat(), date_to.isoformat(), 10)
@@ -67,7 +73,8 @@ def analytics_dashboard():
             daily_stats=daily_stats,
             top_queries=top_queries,
             top_products=top_products,
-            top_categories=top_categories
+            top_categories=top_categories,
+            conversations=conversations
         )
     except Exception as e:
         print(f"❌ Error: {e}")

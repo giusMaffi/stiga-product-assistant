@@ -295,6 +295,52 @@ class AnalyticsTracker:
             print(f"❌ Error: {e}")
             return []
 
+
+    def get_conversations_in_range(self, start_date: str, end_date: str) -> list:
+        """
+        Ottieni tutte le conversazioni in un range di date
+        
+        Args:
+            start_date: Data inizio (YYYY-MM-DD)
+            end_date: Data fine (YYYY-MM-DD)
+            
+        Returns:
+            Lista di dict con dettagli conversazioni
+        """
+        try:
+            cur = self.conn.cursor()
+            cur.execute("""
+                SELECT 
+                    s.session_id,
+                    s.created_at,
+                    COUNT(DISTINCT q.id) as query_count,
+                    COUNT(DISTINCT r.id) as products_shown_count,
+                    COUNT(DISTINCT c.id) as click_count
+                FROM analytics_sessions s
+                LEFT JOIN analytics_queries q ON s.session_id = q.session_id
+                LEFT JOIN analytics_results r ON s.session_id = r.session_id
+                LEFT JOIN analytics_clicks c ON s.session_id = c.session_id
+                WHERE DATE(s.created_at) BETWEEN %s AND %s
+                GROUP BY s.session_id, s.created_at
+                ORDER BY s.created_at DESC
+            """, (start_date, end_date))
+            
+            conversations = []
+            for row in cur.fetchall():
+                conversations.append({
+                    'session_id': row[0],
+                    'created_at': row[1].isoformat() if row[1] else None,
+                    'query_count': row[2] or 0,
+                    'products_shown': row[3] or 0,
+                    'click_count': row[4] or 0
+                })
+            return conversations
+        except Exception as e:
+            print(f"❌ Error getting conversations: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+
     def __del__(self):
         """Chiudi connessione"""
         if self.conn:

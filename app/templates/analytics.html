@@ -272,6 +272,39 @@
                 {% endif %}
             </div>
         </div>
+
+        
+        <div class="card">
+            <div class="card-title">💬 Conversazioni del Periodo</div>
+            {% if conversations %}
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Session ID</th>
+                            <th>Data/Ora</th>
+                            <th>Query</th>
+                            <th>Prodotti</th>
+                            <th>Click</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for conv in conversations %}
+                        <tr>
+                            <td>{{ conv.session_id[:8] }}...</td>
+                            <td>{{ conv.created_at[:16] if conv.created_at else 'N/A' }}</td>
+                            <td>{{ conv.query_count }}</td>
+                            <td>{{ conv.products_shown }}</td>
+                            <td>{{ conv.click_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">Nessuna conversazione nel periodo selezionato</div>
+            {% endif %}
+        </div>
     </div>
     
     <script>
