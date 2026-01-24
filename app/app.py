@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.rag import ProductRetriever, ProductMatcher
 from src.api import ClaudeClient
 from src.config import PORT, FLASK_DEBUG
+from app.analytics_tracker import get_tracker
 try:
     from app.analytics_routes import analytics_bp
 except ModuleNotFoundError:
@@ -65,6 +66,7 @@ print("🚀 Inizializzazione componenti...")
 retriever = ProductRetriever()
 matcher = ProductMatcher()
 claude = ClaudeClient()
+analytics_tracker = get_tracker()
 print("✅ Componenti pronte!")
 
 # Storia conversazioni (in produzione usa database/Redis)
@@ -634,6 +636,58 @@ def track_click():
     except Exception as e:
         print(f"❌ Track click error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/track/click', methods=['POST'])
+@auth.login_required  
+def track_product_click():
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        product_name = data.get('product_name')
+        product_id = data.get('product_id', '')
+        product_category = data.get('product_category', '')
+        language = data.get('language', 'it')
+        
+        if not session_id or not product_name:
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        success = analytics_tracker.log_product_click(
+            session_id=session_id,
+            product_name=product_name,
+            product_id=product_id,
+            product_category=product_category,
+            language=language
+        )
+        
+        if success:
+            return jsonify({'status': 'ok'})
+        else:
+            return jsonify({'status': 'error'}), 503
+    except Exception as e:
+        print(f"❌ Track click error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/track/session', methods=['POST'])
+@auth.login_required
+def track_session_start():
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        language = data.get('language', 'it')
+        user_agent = request.headers.get('User-Agent')
+        
+        if not session_id:
+            return jsonify({'error': 'Missing session_id'}), 400
+        
+        analytics_tracker.log_session_start(
+            session_id=session_id,
+            language=language,
+            user_agent=user_agent
+        )
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        print(f"❌ Track session error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/categories', methods=['GET'])
 @auth.login_required
