@@ -343,32 +343,15 @@ def chat():
     
     # Log query utente (con session hash per privacy)
     session_hash = hashlib.md5(session_id.encode()).hexdigest()[:8]
+    language = data.get('language', 'it')
+    analytics_tracker.log_query(session_id=session_hash, query=user_message, language=language)
     query_logger.info(json.dumps({
         'type': 'query',
         'timestamp': datetime.now().isoformat(),
         'session': session_hash,
         'query': user_message,
         'query_length': len(user_message)
-    }, ensure_ascii=False))
-    
-    # Log query su PostgreSQL
-    try:
-        import psycopg2
-        db_url = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
-        if db_url:
-            conn = psycopg2.connect(db_url)
-            cur = conn.cursor()
-            cur.execute("""
-                INSERT INTO analytics_events (session_id, event_type, timestamp, data)
-                VALUES (%s, %s, %s, %s)
-            """, (session_hash, 'query', datetime.now(), json.dumps({'query': user_message})))
-            conn.commit()
-            cur.close()
-            conn.close()
-    except Exception as e:
-        print(f'⚠️ PostgreSQL query log error: {e}')
-    
-    try:
+    }, ensure_ascii=False))try:
         # 1. Recupera storia conversazione
         if session_id not in conversations:
             conversations[session_id] = {
@@ -520,26 +503,14 @@ def chat():
             'has_comparison': comparator_data is not None
         }, ensure_ascii=False))
         
-        # Log results su PostgreSQL
-        try:
-            import psycopg2
-            db_url = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
-            if db_url:
-                conn = psycopg2.connect(db_url)
-                cur = conn.cursor()
-                cur.execute("""
-                    INSERT INTO analytics_events (session_id, event_type, timestamp, data)
-                    VALUES (%s, %s, %s, %s)
-                """, (session_hash, 'results', datetime.now(), json.dumps({
-                    'products_count': len(products_data),
-                    'top_products': [p['nome'] for p in products_data[:5]],
-                    'categories': list(set([p['categoria'] for p in products_data]))
-                })))
-                conn.commit()
-                cur.close()
-                conn.close()
-        except Exception as e:
-            print(f'⚠️ PostgreSQL results log error: {e}')
+        # Log risultati
+        analytics_tracker.log_results(
+            session_id=session_hash,
+            products_count=len(products_data),
+            products_shown=[p['nome'] for p in products_data],
+            categories=[p['categoria'] for p in products_data if p.get('categoria')],
+            has_comparison=(comparator_data is not None)
+        )
         
         return jsonify({
             'response': response_text,
@@ -549,6 +520,13 @@ def chat():
         
     except Exception as e:
         print(f"❌ Errore: {e}")
+        
+        # Log errore con analytics_tracker
+        analytics_tracker.log_error(
+            session_id=session_hash,
+            error_message=str(e),
+            error_type=type(e).__name__
+        )
         import traceback
         traceback.print_exc()
         
@@ -560,82 +538,18 @@ def chat():
             'error': str(e)
         }, ensure_ascii=False))
         
-        # Log results su PostgreSQL
-        try:
-            import psycopg2
-            db_url = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
-            if db_url:
-                conn = psycopg2.connect(db_url)
-                cur = conn.cursor()
-                cur.execute("""
-                    INSERT INTO analytics_events (session_id, event_type, timestamp, data)
-                    VALUES (%s, %s, %s, %s)
-                """, (session_hash, 'results', datetime.now(), json.dumps({
-                    'products_count': len(products_data),
-                    'top_products': [p['nome'] for p in products_data[:5]],
-                    'categories': list(set([p['categoria'] for p in products_data]))
-                })))
-                conn.commit()
-                cur.close()
-                conn.close()
-        except Exception as e:
-            print(f'⚠️ PostgreSQL results log error: {e}')
+        # Log risultati
+        analytics_tracker.log_results(
+            session_id=session_hash,
+            products_count=len(products_data),
+            products_shown=[p['nome'] for p in products_data],
+            categories=[p['categoria'] for p in products_data if p.get('categoria')],
+            has_comparison=(comparator_data is not None)
+        )
         
         return jsonify({'error': str(e)}), 500
 
 
-
-@app.route('/api/track-click', methods=['POST'])
-@auth.login_required
-def track_click():
-    """Traccia click su link prodotto"""
-    try:
-        data = request.json
-        product_id = data.get('product_id')
-        product_name = data.get('product_name')
-        session_id = data.get('session_id', 'unknown')
-        
-        if not product_id:
-            return jsonify({'status': 'error', 'message': 'product_id required'}), 400
-        
-        # Log su PostgreSQL
-        import psycopg2
-        from datetime import datetime
-        
-        db_url = os.environ.get('DATABASE_PUBLIC_URL') or os.environ.get('DATABASE_URL')
-        
-        if db_url:
-            conn = psycopg2.connect(db_url)
-            cur = conn.cursor()
-            
-            # Hash session per privacy
-            session_hash = hashlib.md5(session_id.encode()).hexdigest()[:8]
-            
-            cur.execute("""
-                INSERT INTO analytics_events 
-                (session_id, event_type, timestamp, data)
-                VALUES (%s, %s, %s, %s)
-            """, (
-                session_hash,
-                'product_click',
-                datetime.now(),
-                json.dumps({
-                    'product_id': product_id,
-                    'product_name': product_name
-                })
-            ))
-            
-            conn.commit()
-            cur.close()
-            conn.close()
-            
-            print(f"✅ Click tracked: {product_name} (session: {session_hash})")
-        
-        return jsonify({'status': 'ok'})
-        
-    except Exception as e:
-        print(f"❌ Track click error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/api/track/click', methods=['POST'])
 @auth.login_required  
