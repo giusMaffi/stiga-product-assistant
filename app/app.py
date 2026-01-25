@@ -180,6 +180,18 @@ def extract_alimentazione(messages: List[Dict]) -> Optional[str]:
     return None
 
 
+def detect_show_all_intent(user_message: str, detected_category: str = None) -> bool:
+    message_lower = user_message.lower()
+    show_all_keywords = ['tutti', 'all', 'tutta la gamma', 'mostrami tutto', 'fammi vedere tutti', 'mostrami tutti', 'elenca tutti', 'voglio vedere tutti', 'dammi tutti', 'quali sono tutti']
+    has_show_all = any(kw in message_lower for kw in show_all_keywords)
+    has_category = detected_category is not None
+    category_keywords = ['robot', 'trattorini', 'tagliaerba', 'decespugliatori', 'motoseghe', 'tagliasiepi', 'idropulitrici', 'soffiatori']
+    has_explicit_category = any(cat in message_lower for cat in category_keywords)
+    result = has_show_all and (has_category or has_explicit_category)
+    if result:
+        print(f"🎯 Modalità CATALOGO COMPLETO attivata per query: '{user_message}'")
+    return result
+
 def build_enriched_query(user_message: str, conversation_history: List[Dict]) -> str:
     """
     Arricchisce query con contesto conversazionale
@@ -405,13 +417,18 @@ def chat():
             print(f"📦 Trovati {len(products_with_scores)} prodotti dal retriever")
             
             reranked = matcher.rerank_products(products_with_scores, enriched_query)
+
+        # Rileva modalità mostra tutti
+        detected_category = requirements.get('categoria')
+        show_all = detect_show_all_intent(user_message, detected_category)
+        products_limit = 20 if show_all else 10
         
         print(f"🎯 Top 10 dopo re-ranking:")
-        for i, (prod, score, reasons) in enumerate(reranked[:10], 1):
+        for i, (prod, score, reasons) in enumerate(reranked[:products_limit], 1):
             print(f"   {i}. {prod.get('nome')} (ID: {prod.get('id')}) - Score: {score:.3f}")
         
         # 6. Prepara contesto per Claude (top 10 prodotti)
-        products_context = claude.format_products_for_context(reranked[:10])
+        products_context = claude.format_products_for_context(reranked[:products_limit])
         
         # 7. Genera risposta (Claude riceve prodotti come contesto)
         raw_response = claude.chat(
@@ -445,7 +462,7 @@ def chat():
         
         if selected_product_ids:
             # Crea mappa ID → prodotto
-            products_map = {prod.get('id'): (prod, score, reasons) for prod, score, reasons in reranked[:10]}
+            products_map = {prod.get('id'): (prod, score, reasons) for prod, score, reasons in reranked[:products_limit]}
             
             # Aggiungi solo i prodotti selezionati da Claude, nell'ordine specificato
             for product_id in selected_product_ids:

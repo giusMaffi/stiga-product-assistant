@@ -16,37 +16,37 @@ class ClaudeClient:
         print("✅ Claude Client pronto!")
     
     def format_products_for_context(self, products_with_scores: List[Tuple]) -> str:
-        """
-        Formatta prodotti per il contesto di Claude
-        
-        Args:
-            products_with_scores: Lista di tuple (product, score, reasons)
-        
-        Returns:
-            Stringa JSON formattata
-        """
+        """Formatta prodotti per Claude - SOLO campi essenziali"""
         products_for_context = []
+        ESSENTIAL = ['Area di taglio fino a', 'Alimentazione', 'Capacità batteria', 'Pendenza massima', 'Larghezza di taglio', 'Tempo massimo di taglio per ciclo']
         
         for item in products_with_scores:
             if len(item) == 2:
                 product, score = item
-                reasons = []
             else:
-                product, score, reasons = item
+                product, score, _ = item
+            
+            all_specs = product.get('specifiche_tecniche', {})
+            specs = {}
+            for k in ESSENTIAL:
+                v = all_specs.get(k) or all_specs.get(f'Specifiche tecniche - {k}')
+                if v:
+                    specs[k] = v
+            
+            desc = product.get('descrizione', '')
             
             products_for_context.append({
                 'id': product.get('id'),
                 'nome': product.get('nome'),
                 'categoria': product.get('categoria'),
-                'descrizione': product.get('descrizione'),
+                'descrizione': desc[:150] + '...' if len(desc) > 150 else desc,
                 'prezzo': product.get('prezzo'),
-                'specifiche_tecniche': product.get('specifiche_tecniche', {}),
-                'url': product.get('url'),
-                'score': float(round(score, 3))
+                'specifiche': specs
             })
         
         import json
         return json.dumps(products_for_context, ensure_ascii=False, indent=2)
+
     
     def chat(
         self,
