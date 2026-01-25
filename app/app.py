@@ -511,23 +511,29 @@ def chat():
         
         print(f"📦 Invio {len(products_data)} prodotti al frontend\n")
         
-        # Log risultati
+        # Prepara dati per tracking
+        product_ids = [p.get('id', '') for p in products_data]
+        product_names = [p['nome'] for p in products_data]
+        categories = [p['categoria'] for p in products_data if p.get('categoria')]
+        
+        # Log risultati (file log)
         query_logger.info(json.dumps({
             'type': 'results',
             'timestamp': datetime.now().isoformat(),
             'session': session_hash,
             'products_count': len(products_data),
-            'top_products': [p['nome'] for p in products_data[:5]],
-            'categories': list(set([p['categoria'] for p in products_data])),
+            'top_products': product_names[:5],
+            'categories': list(set(categories)),
             'has_comparison': comparator_data is not None
         }, ensure_ascii=False))
         
-        # Log risultati
+        # Log risultati (database) - UNICA chiamata con product_names
         analytics_tracker.log_results(
             session_id=session_hash,
             products_count=len(products_data),
-            products_shown=[p['nome'] for p in products_data],
-            categories=[p['categoria'] for p in products_data if p.get('categoria')],
+            products_shown=product_ids,
+            product_names=product_names,
+            categories=categories,
             has_comparison=(comparator_data is not None)
         )
         
@@ -549,22 +555,13 @@ def chat():
         import traceback
         traceback.print_exc()
         
-        # Log errore
+        # Log errore (file log)
         query_logger.info(json.dumps({
             'type': 'error',
             'timestamp': datetime.now().isoformat(),
             'session': session_hash,
             'error': str(e)
         }, ensure_ascii=False))
-        
-        # Log risultati
-        analytics_tracker.log_results(
-            session_id=session_hash,
-            products_count=len(products_data),
-            products_shown=[p['nome'] for p in products_data],
-            categories=[p['categoria'] for p in products_data if p.get('categoria')],
-            has_comparison=(comparator_data is not None)
-        )
         
         return jsonify({'error': str(e)}), 500
 
