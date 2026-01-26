@@ -81,3 +81,80 @@ def analytics_dashboard():
         import traceback
         traceback.print_exc()
         return f"Errore: {str(e)}", 500
+
+
+@analytics_bp.route('/api/analytics/compare', methods=['POST'])
+def compare_periods():
+    """Confronta due periodi analytics"""
+    from flask import jsonify
+    try:
+        from utils.statistics import chi_square_ctr_test, calculate_delta
+    except ImportError:
+        return jsonify({'error': 'scipy not installed'}), 500
+    
+    try:
+        tracker = get_tracker()
+        data = request.get_json()
+        
+        if not data or 'period_a' not in data or 'period_b' not in data:
+            return jsonify({'error': 'Missing period_a or period_b'}), 400
+        
+        period_a = data['period_a']
+        period_b = data['period_b']
+        
+        # Parse dates
+        a_start = datetime.strptime(period_a['start'], '%Y-%m-%d').date()
+        a_end = datetime.strptime(period_a['end'], '%Y-%m-%d').date()
+        b_start = datetime.strptime(period_b['start'], '%Y-%m-%d').date()
+        b_end = datetime.strptime(period_b['end'], '%Y-%m-%d').date()
+        
+        # Get KPIs helper
+        def get_kpis(start, end):
+            conn = tracker.conn
+            if not conn:
+                return None
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT 
+                    COUNT(DISTINCT session_id),
+                    COUNT(*) FILTER (WHERE event_type = 'query'),
+                    SUM((data->>'products_count')::int) FILTER (WHERE event_type = 'results'),
+                    COUNT(*) FILTER (WHERE event_type = 'product_click')
+                FROM analytics_events
+                WHERE timestamp >= %s AND timestamp < %s + INTERVAL '1 day'
+            """, (start, end))
+            r = cur.fetchone()
+            cur.close()
+            sessions, queries, products, clicks = r[0] or 0, r[1] or 0, r[2] or 0, r[3] or 0
+            ctr = round((clicks / products * 100), 2) if products > 0 else 0.0
+            return {'sessions': sessions, 'queries': queries, 'products_shown': products, 'clicks': clicks, 'ctr': ctr}
+        
+        kpis_a = get_kpis(a_start, a_end)
+        kpis_b = get_kpis(b_start, b_end)
+        
+        if not kpis_a or not kpis_b:
+            return jsonify({'error': 'Database error'}), 503
+        
+        # Deltas
+        deltas = {
+            'sessions': calculate_delta(kpis_a['sessions'], kpis_b['sessions']),
+            'ctr': calculate_delta(kpis_a['ctr'], kpis_b['ctr'], is_percentage=True)
+        }
+        
+        # Significance
+        significance = chi_square_ctr_test(
+            {'clicks': kpis_a['clicks'], 'products_shown': kpis_a['products_shown']},
+            {'clicks': kpis_b['clicks'], 'products_shown': kpis_b['products_shown']}
+        )
+        
+        return jsonify({
+            'period_a': {'start': a_start.isoformat(), 'end': a_end.isoformat(), 'kpis': kpis_a},
+            'period_b': {'start': b_start.isoformat(), 'end': b_end.isoformat(), 'kpis': kpis_b},
+            'deltas': deltas,
+            'significance': significance
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500

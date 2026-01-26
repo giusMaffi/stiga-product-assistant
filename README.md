@@ -55,7 +55,7 @@ python scripts/generate_embeddings.py
 ### 6. Avvia l'applicazione
 
 ```bash
-python app/app.py
+python app/main.py
 ```
 
 Apri il browser su `http://localhost:5000`
