@@ -23,11 +23,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.rag import ProductRetriever, ProductMatcher
 from src.api import ClaudeClient
 from src.config import PORT, FLASK_DEBUG
-from analytics_tracker import get_tracker
-try:
-    from analytics_routes import analytics_bp
-except ModuleNotFoundError:
-    from analytics_routes import analytics_bp
+from app.analytics_tracker import get_tracker
+from app.analytics_routes import analytics_bp
 
 app = Flask(__name__)
 CORS(app)
