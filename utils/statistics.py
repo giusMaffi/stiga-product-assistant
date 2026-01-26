@@ -30,7 +30,7 @@ def chi_square_ctr_test(period_a: Dict, period_b: Dict) -> Dict:
     if shown_a == 0 or shown_b == 0:
         return {
             'p_value': 1.0,
-            'is_significant': False,
+            'is_significant': bool(False),
             'confidence': None,
             'chi2_statistic': 0.0,
             'error': 'Insufficient data for comparison'
@@ -60,7 +60,7 @@ def chi_square_ctr_test(period_a: Dict, period_b: Dict) -> Dict:
         
         return {
             'p_value': round(p_value, 4),
-            'is_significant': p_value < 0.05,
+            'is_significant': bool(p_value < 0.05),
             'confidence': confidence,
             'chi2_statistic': round(chi2, 2)
         }
@@ -68,7 +68,7 @@ def chi_square_ctr_test(period_a: Dict, period_b: Dict) -> Dict:
     except Exception as e:
         return {
             'p_value': 1.0,
-            'is_significant': False,
+            'is_significant': bool(False),
             'confidence': None,
             'chi2_statistic': 0.0,
             'error': str(e)
