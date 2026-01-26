@@ -29,10 +29,10 @@ def chi_square_ctr_test(period_a: Dict, period_b: Dict) -> Dict:
     # Edge cases
     if shown_a == 0 or shown_b == 0:
         return {
-            'p_value': 1.0,
+            'p_value': float(1.0),
             'is_significant': bool(False),
             'confidence': None,
-            'chi2_statistic': 0.0,
+            'chi2_statistic': float(0.0),
             'error': 'Insufficient data for comparison'
         }
     
@@ -59,18 +59,18 @@ def chi_square_ctr_test(period_a: Dict, period_b: Dict) -> Dict:
             confidence = None
         
         return {
-            'p_value': round(p_value, 4),
+            'p_value': float(round(p_value, 4)),
             'is_significant': bool(p_value < 0.05),
             'confidence': confidence,
-            'chi2_statistic': round(chi2, 2)
+            'chi2_statistic': float(round(chi2, 2))
         }
     
     except Exception as e:
         return {
-            'p_value': 1.0,
+            'p_value': float(1.0),
             'is_significant': bool(False),
             'confidence': None,
-            'chi2_statistic': 0.0,
+            'chi2_statistic': float(0.0),
             'error': str(e)
         }
 
@@ -93,9 +93,18 @@ def calculate_delta(value_a: float, value_b: float, is_percentage: bool = False)
     """
     if value_a == 0:
         if value_b == 0:
-            return {'absolute': 0, 'percent': 0, 'direction': 'neutral'}
+            return {
+                'absolute': float(0),
+                'percent': float(0),
+                'direction': 'neutral'
+            }
         else:
-            return {'absolute': value_b, 'percent': float('inf'), 'direction': 'increase'}
+            # Cap at 999.99% instead of infinity for JSON compatibility
+            return {
+                'absolute': float(value_b),
+                'percent': float(999.99),
+                'direction': 'increase'
+            }
     
     absolute_delta = value_b - value_a
     
@@ -114,8 +123,8 @@ def calculate_delta(value_a: float, value_b: float, is_percentage: bool = False)
         direction = 'neutral'
     
     return {
-        'absolute': round(absolute_delta, 2),
-        'percent': round(percent_delta, 2),
+        'absolute': float(round(absolute_delta, 2)),
+        'percent': float(round(percent_delta, 2)),
         'direction': direction
     }
 
