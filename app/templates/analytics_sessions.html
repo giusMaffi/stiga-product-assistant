@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sessions - STIGA Analytics</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics_compare.css') }}">
+</head>
+<body>
+    <header class="analytics-header">
+        <div class="header-content">
+            <h1 class="analytics-title">
+                <a href="javascript:history.back()" style="color: inherit; text-decoration: none;">← Back to Daily</a>
+            </h1>
+            <div style="color: #00E5FF; font-size: 1.2rem;">
+                🗓️ Sessions on {{ date }}
+            </div>
+        </div>
+    </header>
+
+    <div class="date-selector-container">
+        <div class="date-selector" style="text-align: center; padding: 1rem;">
+            <span style="color: #b0b0b0;">Total Sessions: {{ conversations|length }}</span>
+        </div>
+    </div>
+
+    <div class="products-table-container">
+        <div class="table-card">
+            <div class="table-header">
+                <h3 class="table-title">💬 Session List (Click to view transcript)</h3>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="products-table">
+                    <thead>
+                        <tr>
+                            <th>Session ID</th>
+                            <th>Time</th>
+                            <th>Queries</th>
+                            <th>Products</th>
+                            <th>Clicks</th>
+                            <th>CTR</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const conversations = {{ conversations | tojson }};
+
+        const tbody = document.getElementById('sessionsTableBody');
+        
+        if (conversations.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#666;">No sessions found for this date</td></tr>';
+        } else {
+            conversations.forEach(conv => {
+                const products = conv.products || 0;
+                const clicks = conv.clicks || 0;
+                const ctr = products > 0 ? ((clicks / products) * 100).toFixed(2) : '0.00';
+                
+                const timestamp = new Date(conv.timestamp);
+                const timeStr = timestamp.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'});
+                
+                const sessionHash = conv.session_id.substring(0, 8);
+                
+                const row = tbody.insertRow();
+                row.style.cursor = 'pointer';
+                row.onclick = () => window.location.href = `/analytics/transcript/${conv.session_id}`;
+                
+                row.innerHTML = `
+                    <td class="product-name">${sessionHash}</td>
+                    <td class="stat-cell">${timeStr}</td>
+                    <td class="stat-cell">${conv.queries || 0}</td>
+                    <td class="stat-cell">${products}</td>
+                    <td class="stat-cell">${clicks}</td>
+                    <td class="ctr-value">${ctr}%</td>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>

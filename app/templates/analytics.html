@@ -4,353 +4,444 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STIGA Analytics Dashboard</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container { max-width: 1400px; margin: 0 auto; }
-        .header {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-        h1 { color: #2d3748; font-size: 32px; margin-bottom: 10px; }
-        .subtitle { color: #718096; font-size: 16px; }
-        .date-range-section {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-        .date-range-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 15px;
-        }
-        .date-inputs {
-            display: flex;
-            gap: 15px;
-            align-items: end;
-            flex-wrap: wrap;
-            margin-bottom: 15px;
-        }
-        .date-input-group { display: flex; flex-direction: column; gap: 5px; }
-        .date-input-group label { font-size: 14px; font-weight: 500; color: #4a5568; }
-        .date-input-group input[type="date"] {
-            padding: 10px 15px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 14px;
-            transition: all 0.3s;
-        }
-        .date-input-group input[type="date"]:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        .btn-apply {
-            padding: 10px 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .btn-apply:hover { transform: translateY(-2px); }
-        .quick-filters { display: flex; gap: 10px; flex-wrap: wrap; }
-        .btn-quick {
-            padding: 8px 16px;
-            background: white;
-            border: 2px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 500;
-            color: #4a5568;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .btn-quick:hover {
-            background: #f7fafc;
-            border-color: #667eea;
-            color: #667eea;
-        }
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        .kpi-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            padding: 25px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
-        }
-        .kpi-card:hover { transform: translateY(-5px); }
-        .kpi-icon { font-size: 36px; margin-bottom: 10px; }
-        .kpi-label { color: #718096; font-size: 14px; margin-bottom: 5px; }
-        .kpi-value { color: #2d3748; font-size: 32px; font-weight: 700; }
-        .card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            padding: 25px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        .card-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 20px;
-        }
-        .table-container { max-height: 400px; overflow-y: auto; }
-        table { width: 100%; border-collapse: collapse; }
-        th {
-            background: #f7fafc;
-            padding: 12px;
-            text-align: left;
-            font-size: 13px;
-            font-weight: 600;
-            color: #4a5568;
-            position: sticky;
-            top: 0;
-        }
-        td {
-            padding: 12px;
-            border-bottom: 1px solid #e2e8f0;
-            font-size: 14px;
-            color: #2d3748;
-        }
-        tr:hover { background: #f7fafc; }
-        .list-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .list-item:last-child { border-bottom: none; }
-        .list-item-name { font-size: 14px; color: #2d3748; flex: 1; }
-        .list-item-value { font-size: 14px; font-weight: 600; color: #667eea; }
-        .empty-state { text-align: center; padding: 40px; color: #a0aec0; }
-        .content-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        @media (max-width: 968px) {
-            .content-grid { grid-template-columns: 1fr; }
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics_compare.css') }}">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🌱 STIGA Analytics</h1>
-            <p class="subtitle">Real-time Performance Dashboard</p>
-        </div>
-        
-        <div class="date-range-section">
-            <div class="date-range-title">📅 Seleziona Periodo</div>
-            <div class="date-inputs">
-                <div class="date-input-group">
-                    <label>Da:</label>
-                    <input type="date" id="date-from" value="{{ date_from }}">
-                </div>
-                <div class="date-input-group">
-                    <label>A:</label>
-                    <input type="date" id="date-to" value="{{ date_to }}">
-                </div>
-                <button class="btn-apply" onclick="applyDateRange()">Applica</button>
-            </div>
-            <div class="quick-filters">
-                <button class="btn-quick" onclick="setQuickRange('today')">Oggi</button>
-                <button class="btn-quick" onclick="setQuickRange('yesterday')">Ieri</button>
-                <button class="btn-quick" onclick="setQuickRange('7')">Ultimi 7 giorni</button>
-                <button class="btn-quick" onclick="setQuickRange('30')">Ultimi 30 giorni</button>
-                <button class="btn-quick" onclick="setQuickRange('90')">Ultimi 90 giorni</button>
+    <header class="analytics-header">
+        <div class="header-content">
+            <h1 class="analytics-title">📊 STIGA Analytics</h1>
+            <div class="mode-toggle">
+                <button id="singleModeBtn" class="active" onclick="switchMode('single')">Single Period</button>
+                <button id="compareModeBtn" onclick="switchMode('compare')">Compare Periods</button>
             </div>
         </div>
-        
-        <div class="kpi-grid">
-            <div class="kpi-card">
-                <div class="kpi-icon">💬</div>
-                <div class="kpi-label">Conversazioni</div>
-                <div class="kpi-value">{{ kpis.total_sessions }}</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-icon">🔍</div>
-                <div class="kpi-label">Query Utenti</div>
-                <div class="kpi-value">{{ kpis.total_queries }}</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-icon">📦</div>
-                <div class="kpi-label">Prodotti Mostrati</div>
-                <div class="kpi-value">{{ kpis.total_products }}</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-icon">🖱️</div>
-                <div class="kpi-label">Click</div>
-                <div class="kpi-value">{{ kpis.total_clicks }}</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-icon">📊</div>
-                <div class="kpi-label">CTR</div>
-                <div class="kpi-value">{{ "%.1f"|format(kpis.ctr_percent) }}%</div>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-title">📈 Statistiche Giornaliere</div>
-            <div class="table-container">
-                {% if daily_stats %}
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Sessioni</th>
-                            <th>Query</th>
-                            <th>Prodotti</th>
-                            <th>Click</th>
-                            <th>CTR%</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for stat in daily_stats %}
-                        <tr>
-                            <td>{{ stat.date }}</td>
-                            <td>{{ stat.total_sessions }}</td>
-                            <td>{{ stat.total_queries }}</td>
-                            <td>{{ stat.total_products_shown }}</td>
-                            <td>{{ stat.total_clicks }}</td>
-                            <td>{{ "%.1f"|format(stat.ctr_percent) }}%</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                <div class="empty-state">Nessun dato disponibile</div>
-                {% endif %}
-            </div>
-        </div>
-        
-        <div class="content-grid">
-            <div class="card">
-                <div class="card-title">🔍 Top Query</div>
-                {% if top_queries %}
-                    {% for item in top_queries %}
-                    <div class="list-item">
-                        <div class="list-item-name">{{ item.query }}</div>
-                        <div class="list-item-value">{{ item.count }}</div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                <div class="empty-state">Nessuna query</div>
-                {% endif %}
-            </div>
-            <div class="card">
-                <div class="card-title">🏆 Top Prodotti</div>
-                {% if top_products %}
-                    {% for item in top_products %}
-                    <div class="list-item">
-                        <div class="list-item-name">{{ item.product_name }}</div>
-                        <div class="list-item-value">{{ item.clicks }}</div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                <div class="empty-state">Nessun prodotto</div>
-                {% endif %}
-            </div>
-        </div>
+    </header>
 
-        
-        <div class="card">
-            <div class="card-title">💬 Conversazioni del Periodo</div>
-            {% if conversations %}
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Session ID</th>
-                            <th>Data/Ora</th>
-                            <th>Query</th>
-                            <th>Prodotti</th>
-                            <th>Click</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for conv in conversations %}
-                        <tr>
-                            <td>{{ conv.session_id[:8] }}...</td>
-                            <td>{{ conv.created_at[:16] if conv.created_at else 'N/A' }}</td>
-                            <td>{{ conv.query_count }}</td>
-                            <td>{{ conv.products_shown }}</td>
-                            <td>{{ conv.click_count }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <div class="date-selector-container">
+        <div class="date-selector">
+            <div id="singleDatePicker" class="date-picker-mode">
+                <div class="date-row">
+                    <span class="date-label">Period:</span>
+                    <div class="date-inputs">
+                        <div class="date-input-group">
+                            <label>From</label>
+                            <input type="date" id="singleDateFrom" value="{{ date_from }}">
+                        </div>
+                        <div class="date-input-group">
+                            <label>To</label>
+                            <input type="date" id="singleDateTo" value="{{ date_to }}">
+                        </div>
+                    </div>
+                    <button class="preset-btn" onclick="applySingleDates()">Apply</button>
+                </div>
+                <div class="date-row">
+                    <span class="date-label">Quick:</span>
+                    <div class="quick-presets">
+                        <button class="preset-btn" onclick="setQuickRange('today')">Today</button>
+                        <button class="preset-btn" onclick="setQuickRange('yesterday')">Yesterday</button>
+                        <button class="preset-btn" onclick="setQuickRange('week')">Last 7 Days</button>
+                        <button class="preset-btn" onclick="setQuickRange('month')">Last 30 Days</button>
+                    </div>
+                </div>
             </div>
-            {% else %}
-            <div class="empty-state">Nessuna conversazione nel periodo selezionato</div>
-            {% endif %}
+
+            <div id="compareDatePicker" class="date-picker-mode" style="display: none;">
+                <div class="date-row">
+                    <span class="date-label">Period A:</span>
+                    <div class="date-inputs">
+                        <div class="date-input-group">
+                            <label>From</label>
+                            <input type="date" id="periodAFrom">
+                        </div>
+                        <div class="date-input-group">
+                            <label>To</label>
+                            <input type="date" id="periodATo">
+                        </div>
+                    </div>
+                </div>
+                <div class="date-row">
+                    <span class="date-label">Period B:</span>
+                    <div class="date-inputs">
+                        <div class="date-input-group">
+                            <label>From</label>
+                            <input type="date" id="periodBFrom">
+                        </div>
+                        <div class="date-input-group">
+                            <label>To</label>
+                            <input type="date" id="periodBTo">
+                        </div>
+                    </div>
+                </div>
+                <div class="date-row">
+                    <span class="date-label">Quick:</span>
+                    <div class="quick-presets">
+                        <button class="preset-btn" onclick="setComparePreset('week')">This Week vs Last Week</button>
+                        <button class="preset-btn" onclick="setComparePreset('month')">This Month vs Last Month</button>
+                    </div>
+                    <button class="preset-btn" onclick="applyCompareDates()">Compare</button>
+                </div>
+            </div>
         </div>
     </div>
-    
+
+    <div class="kpi-grid" id="kpiGrid">
+        <div id="singleKPIs">
+            <div class="kpi-card" onclick="drillDownKPI('sessions')">
+                <div class="kpi-header">
+                    <span class="kpi-label">Sessions</span>
+                    <span class="kpi-icon">👥</span>
+                </div>
+                <div class="kpi-value" id="kpiSessions">{{ kpis.total_sessions }}</div>
+            </div>
+            <div class="kpi-card" onclick="drillDownKPI('queries')">
+                <div class="kpi-header">
+                    <span class="kpi-label">Queries</span>
+                    <span class="kpi-icon">🔍</span>
+                </div>
+                <div class="kpi-value" id="kpiQueries">{{ kpis.total_queries }}</div>
+            </div>
+            <div class="kpi-card" onclick="drillDownKPI('clicks')">
+                <div class="kpi-header">
+                    <span class="kpi-label">Clicks</span>
+                    <span class="kpi-icon">👆</span>
+                </div>
+                <div class="kpi-value" id="kpiClicks">{{ kpis.total_clicks }}</div>
+            </div>
+            <div class="kpi-card" onclick="drillDownKPI('ctr')">
+                <div class="kpi-header">
+                    <span class="kpi-label">Click Rate</span>
+                    <span class="kpi-icon">📈</span>
+                </div>
+                <div class="kpi-value" id="kpiCTR">{{ kpis.ctr_percent }}%</div>
+            </div>
+        </div>
+        <div id="compareKPIs" style="display: none;"></div>
+    </div>
+
+    <div class="charts-container">
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">📈 Daily Trends</h3>
+            </div>
+            <div id="dailyTrendsChart" style="height: 400px;"></div>
+        </div>
+    </div>
+
+    <div class="products-table-container">
+        <div class="table-card">
+            <div class="table-header">
+                <h3 class="table-title">🏆 Top Products Performance</h3>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="products-table">
+                    <thead>
+                        <tr>
+                            <th class="single-mode-col">Product</th>
+                            <th class="single-mode-col">Shown</th>
+                            <th class="single-mode-col">Clicked</th>
+                            <th class="single-mode-col">CTR</th>
+                            <th class="compare-mode-col" style="display: none;">Product</th>
+                            <th class="compare-mode-col" style="display: none;">Period A</th>
+                            <th class="compare-mode-col" style="display: none;">Period B</th>
+                            <th class="compare-mode-col" style="display: none;">Δ CTR</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingState" class="loading" style="display: none;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+        <p>Loading analytics data...</p>
+    </div>
+
+    <div id="errorState" class="error-message" style="display: none;">
+        <strong>Error:</strong> <span id="errorMessage"></span>
+    </div>
+
     <script>
-        function setQuickRange(period) {
+        let currentMode = 'single';
+        const initialData = {
+            date_from: '{{ date_from }}',
+            date_to: '{{ date_to }}',
+            kpis: {{ kpis | tojson }},
+            daily_stats: {{ daily_stats | tojson }},
+            top_products: {{ top_products | tojson }}
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            renderSingleMode(initialData);
+            renderDailyChart(initialData.daily_stats, 'single');
+            renderProductsTable(initialData.top_products, 'single');
+        });
+
+        function drillDownKPI(metric) {
+            const from = document.getElementById('singleDateFrom').value;
+            const to = document.getElementById('singleDateTo').value;
+            window.location.href = `/analytics/daily?metric=${metric}&date_from=${from}&date_to=${to}`;
+        }
+
+        function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('singleModeBtn').classList.toggle('active', mode === 'single');
+            document.getElementById('compareModeBtn').classList.toggle('active', mode === 'compare');
+            document.getElementById('singleDatePicker').style.display = mode === 'single' ? 'block' : 'none';
+            document.getElementById('compareDatePicker').style.display = mode === 'compare' ? 'block' : 'none';
+            document.getElementById('singleKPIs').style.display = mode === 'single' ? 'contents' : 'none';
+            document.getElementById('compareKPIs').style.display = mode === 'compare' ? 'contents' : 'none';
+            document.querySelectorAll('.single-mode-col').forEach(el => {
+                el.style.display = mode === 'single' ? 'table-cell' : 'none';
+            });
+            document.querySelectorAll('.compare-mode-col').forEach(el => {
+                el.style.display = mode === 'compare' ? 'table-cell' : 'none';
+            });
+            if (mode === 'compare') {
+                initializeCompareMode();
+            }
+        }
+
+        function setQuickRange(range) {
             const today = new Date();
-            const dateFrom = document.getElementById('date-from');
-            const dateTo = document.getElementById('date-to');
-            dateTo.value = today.toISOString().split('T')[0];
-            
-            switch(period) {
+            let from, to;
+            switch(range) {
                 case 'today':
-                    dateFrom.value = dateTo.value;
+                    from = to = today.toISOString().split('T')[0];
                     break;
                 case 'yesterday':
                     const yesterday = new Date(today);
                     yesterday.setDate(yesterday.getDate() - 1);
-                    dateFrom.value = yesterday.toISOString().split('T')[0];
-                    dateTo.value = dateFrom.value;
+                    from = to = yesterday.toISOString().split('T')[0];
                     break;
-                case '7':
-                    const week = new Date(today);
-                    week.setDate(week.getDate() - 7);
-                    dateFrom.value = week.toISOString().split('T')[0];
+                case 'week':
+                    from = new Date(today);
+                    from.setDate(from.getDate() - 7);
+                    from = from.toISOString().split('T')[0];
+                    to = today.toISOString().split('T')[0];
                     break;
-                case '30':
-                    const month = new Date(today);
-                    month.setDate(month.getDate() - 30);
-                    dateFrom.value = month.toISOString().split('T')[0];
-                    break;
-                case '90':
-                    const quarter = new Date(today);
-                    quarter.setDate(quarter.getDate() - 90);
-                    dateFrom.value = quarter.toISOString().split('T')[0];
+                case 'month':
+                    from = new Date(today);
+                    from.setDate(from.getDate() - 30);
+                    from = from.toISOString().split('T')[0];
+                    to = today.toISOString().split('T')[0];
                     break;
             }
-            applyDateRange();
+            document.getElementById('singleDateFrom').value = from;
+            document.getElementById('singleDateTo').value = to;
+            applySingleDates();
         }
-        
-        function applyDateRange() {
-            const from = document.getElementById('date-from').value;
-            const to = document.getElementById('date-to').value;
-            if (!from || !to) {
-                alert('Seleziona entrambe le date');
+
+        function applySingleDates() {
+            const from = document.getElementById('singleDateFrom').value;
+            const to = document.getElementById('singleDateTo').value;
+            window.location.href = `/analytics?date_from=${from}&date_to=${to}`;
+        }
+
+        function initializeCompareMode() {
+            const today = new Date();
+            const lastWeekStart = new Date(today);
+            lastWeekStart.setDate(lastWeekStart.getDate() - 14);
+            const lastWeekEnd = new Date(today);
+            lastWeekEnd.setDate(lastWeekEnd.getDate() - 8);
+            const thisWeekStart = new Date(today);
+            thisWeekStart.setDate(thisWeekStart.getDate() - 7);
+            document.getElementById('periodAFrom').value = lastWeekStart.toISOString().split('T')[0];
+            document.getElementById('periodATo').value = lastWeekEnd.toISOString().split('T')[0];
+            document.getElementById('periodBFrom').value = thisWeekStart.toISOString().split('T')[0];
+            document.getElementById('periodBTo').value = today.toISOString().split('T')[0];
+        }
+
+        function setComparePreset(preset) {
+            const today = new Date();
+            let aFrom, aTo, bFrom, bTo;
+            if (preset === 'week') {
+                aFrom = new Date(today);
+                aFrom.setDate(aFrom.getDate() - 14);
+                aTo = new Date(today);
+                aTo.setDate(aTo.getDate() - 8);
+                bFrom = new Date(today);
+                bFrom.setDate(bFrom.getDate() - 7);
+                bTo = today;
+            } else if (preset === 'month') {
+                aFrom = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                aTo = new Date(today.getFullYear(), today.getMonth(), 0);
+                bFrom = new Date(today.getFullYear(), today.getMonth(), 1);
+                bTo = today;
+            }
+            document.getElementById('periodAFrom').value = aFrom.toISOString().split('T')[0];
+            document.getElementById('periodATo').value = aTo.toISOString().split('T')[0];
+            document.getElementById('periodBFrom').value = bFrom.toISOString().split('T')[0];
+            document.getElementById('periodBTo').value = bTo.toISOString().split('T')[0];
+            applyCompareDates();
+        }
+
+        async function applyCompareDates() {
+            const aFrom = document.getElementById('periodAFrom').value;
+            const aTo = document.getElementById('periodATo').value;
+            const bFrom = document.getElementById('periodBFrom').value;
+            const bTo = document.getElementById('periodBTo').value;
+            showLoading(true);
+            try {
+                const response = await fetch('/api/analytics/compare', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        period_a: {start: aFrom, end: aTo},
+                        period_b: {start: bFrom, end: bTo}
+                    })
+                });
+                if (!response.ok) throw new Error('API request failed');
+                const data = await response.json();
+                renderCompareMode(data);
+                showLoading(false);
+            } catch (error) {
+                showError(error.message);
+                showLoading(false);
+            }
+        }
+
+        function renderSingleMode(data) {
+            document.getElementById('kpiSessions').textContent = data.kpis.total_sessions || 0;
+            document.getElementById('kpiQueries').textContent = data.kpis.total_queries || 0;
+            document.getElementById('kpiClicks').textContent = data.kpis.total_clicks || 0;
+            document.getElementById('kpiCTR').textContent = (data.kpis.ctr_percent || 0) + '%';
+        }
+
+        function renderCompareMode(data) {
+            const compareContainer = document.getElementById('compareKPIs');
+            compareContainer.innerHTML = '';
+            const metrics = [
+                {key: 'sessions', label: 'Sessions', icon: '👥'},
+                {key: 'queries', label: 'Queries', icon: '🔍'},
+                {key: 'clicks', label: 'Clicks', icon: '👆'},
+                {key: 'ctr', label: 'CTR', icon: '📈', isPercent: true}
+            ];
+            metrics.forEach(metric => {
+                const valueA = data.period_a.kpis[metric.key];
+                const valueB = data.period_b.kpis[metric.key];
+                const delta = data.deltas[metric.key];
+                const isSignificant = metric.key === 'ctr' && data.significance.is_significant;
+                const card = document.createElement('div');
+                card.className = 'kpi-card';
+                card.innerHTML = `
+                    <div class="kpi-header">
+                        <span class="kpi-label">${metric.label}</span>
+                        <span class="kpi-icon">${metric.icon}</span>
+                    </div>
+                    <div class="kpi-comparison">
+                        <div class="kpi-period">
+                            <span class="kpi-period-label">Period A</span>
+                            <div class="kpi-period-value">${valueA}${metric.isPercent ? '%' : ''}</div>
+                        </div>
+                        <div class="kpi-period">
+                            <span class="kpi-period-label">Period B</span>
+                            <div class="kpi-period-value">${valueB}${metric.isPercent ? '%' : ''}</div>
+                        </div>
+                    </div>
+                    <div class="kpi-delta ${delta.direction}">
+                        <span>${delta.direction === 'increase' ? '↑' : delta.direction === 'decrease' ? '↓' : '→'}</span>
+                        <span>${Math.abs(delta.absolute)}${metric.isPercent ? 'pp' : ''}</span>
+                        ${isSignificant ? '<span class="significance-badge">✨ Significativo</span>' : ''}
+                    </div>
+                `;
+                compareContainer.appendChild(card);
+            });
+            renderDailyChart(data.daily_trends, 'compare');
+            renderProductsTable(data.products_comparison, 'compare');
+        }
+
+        function renderDailyChart(data, mode) {
+            if (mode === 'single') {
+                const trace = {
+                    x: data.map(d => d.date),
+                    y: data.map(d => d.total_sessions || 0),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Sessions',
+                    line: {color: '#00E5FF', width: 3},
+                    marker: {size: 8}
+                };
+                const layout = {
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: {color: '#ffffff'},
+                    xaxis: {gridcolor: 'rgba(0, 229, 255, 0.1)'},
+                    yaxis: {gridcolor: 'rgba(0, 229, 255, 0.1)'},
+                    margin: {t: 20, r: 20, b: 40, l: 60}
+                };
+                Plotly.newPlot('dailyTrendsChart', [trace], layout, {responsive: true});
+            } else {
+                const traceA = {
+                    x: data.period_a.map(d => d.date),
+                    y: data.period_a.map(d => d.ctr || 0),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Period A',
+                    line: {color: '#00E5FF', width: 3}
+                };
+                const traceB = {
+                    x: data.period_b.map(d => d.date),
+                    y: data.period_b.map(d => d.ctr || 0),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: 'Period B',
+                    line: {color: '#FFA726', width: 3}
+                };
+                const layout = {
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: {color: '#ffffff'},
+                    xaxis: {gridcolor: 'rgba(0, 229, 255, 0.1)'},
+                    yaxis: {gridcolor: 'rgba(0, 229, 255, 0.1)', title: 'CTR (%)'},
+                    margin: {t: 20, r: 20, b: 40, l: 60}
+                };
+                Plotly.newPlot('dailyTrendsChart', [traceA, traceB], layout, {responsive: true});
+            }
+        }
+
+        function renderProductsTable(products, mode) {
+            const tbody = document.getElementById('productsTableBody');
+            tbody.innerHTML = '';
+            if (!products || products.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#666;">No data available</td></tr>';
                 return;
             }
-            window.location.href = `/analytics?date_from=${from}&date_to=${to}`;
+            products.forEach(product => {
+                const row = tbody.insertRow();
+                if (mode === 'single') {
+                    row.innerHTML = `
+                        <td class="product-name">${product.product_name || 'N/A'}</td>
+                        <td class="stat-cell">${product.shown_count || 0}</td>
+                        <td class="stat-cell">${product.click_count || 0}</td>
+                        <td class="ctr-value">${(product.ctr || 0).toFixed(2)}%</td>
+                    `;
+                } else {
+                    const deltaClass = product.delta_ctr.direction;
+                    const deltaArrow = product.delta_ctr.direction === 'increase' ? '↑' : 
+                                     product.delta_ctr.direction === 'decrease' ? '↓' : '→';
+                    row.innerHTML = `
+                        <td class="product-name">${product.name}</td>
+                        <td class="stat-cell">${product.period_a.shown}/${product.period_a.clicked} (${product.period_a.ctr}%)</td>
+                        <td class="stat-cell">${product.period_b.shown}/${product.period_b.clicked} (${product.period_b.ctr}%)</td>
+                        <td class="delta-cell ${deltaClass}">
+                            <span class="delta-arrow">${deltaArrow}</span>
+                            <span>${Math.abs(product.delta_ctr.absolute).toFixed(2)}pp</span>
+                        </td>
+                    `;
+                }
+            });
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingState').style.display = show ? 'block' : 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorState').style.display = 'block';
         }
     </script>
 </body>

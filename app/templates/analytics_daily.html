@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Breakdown - STIGA Analytics</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics_compare.css') }}">
+</head>
+<body>
+    <header class="analytics-header">
+        <div class="header-content">
+            <h1 class="analytics-title">
+                <a href="/analytics?date_from={{ date_from }}&date_to={{ date_to }}" style="color: inherit; text-decoration: none;">← Back to Overview</a>
+            </h1>
+            <div style="color: #00E5FF; font-size: 1.2rem;">
+                📅 Daily Breakdown: {{ metric|title }}
+            </div>
+        </div>
+    </header>
+
+    <div class="date-selector-container">
+        <div class="date-selector" style="text-align: center; padding: 1rem;">
+            <span style="color: #b0b0b0;">Period: {{ date_from }} to {{ date_to }}</span>
+        </div>
+    </div>
+
+    <div class="charts-container">
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">📊 Daily {{ metric|title }}</h3>
+            </div>
+            <div id="dailyChart" style="height: 400px;"></div>
+        </div>
+    </div>
+
+    <div class="products-table-container">
+        <div class="table-card">
+            <div class="table-header">
+                <h3 class="table-title">📋 Daily Details (Click to see sessions)</h3>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="products-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Sessions</th>
+                            <th>Queries</th>
+                            <th>Products Shown</th>
+                            <th>Clicks</th>
+                            <th>CTR</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dailyTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dailyStats = {{ daily_stats | tojson }};
+        const metric = '{{ metric }}';
+
+        // Render chart
+        const metricMap = {
+            'sessions': 'total_sessions',
+            'queries': 'total_queries',
+            'clicks': 'total_clicks',
+            'ctr': 'ctr'
+        };
+
+        const trace = {
+            x: dailyStats.map(d => d.date),
+            y: dailyStats.map(d => {
+                if (metric === 'ctr') {
+                    const clicks = d.total_clicks || 0;
+                    const products = d.total_products_shown || 0;
+                    return products > 0 ? (clicks / products * 100).toFixed(2) : 0;
+                }
+                return d[metricMap[metric]] || 0;
+            }),
+            type: 'scatter',
+            mode: 'lines+markers',
+            name: metric.charAt(0).toUpperCase() + metric.slice(1),
+            line: {color: '#00E5FF', width: 3},
+            marker: {size: 10}
+        };
+
+        const layout = {
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: {color: '#ffffff'},
+            xaxis: {gridcolor: 'rgba(0, 229, 255, 0.1)'},
+            yaxis: {gridcolor: 'rgba(0, 229, 255, 0.1)', title: metric === 'ctr' ? 'CTR (%)' : metric.charAt(0).toUpperCase() + metric.slice(1)},
+            margin: {t: 20, r: 20, b: 40, l: 60}
+        };
+
+        Plotly.newPlot('dailyChart', [trace], layout, {responsive: true});
+
+        // Render table
+        const tbody = document.getElementById('dailyTableBody');
+        dailyStats.forEach(stat => {
+            const clicks = stat.total_clicks || 0;
+            const products = stat.total_products_shown || 0;
+            const ctr = products > 0 ? ((clicks / products) * 100).toFixed(2) : '0.00';
+            
+            const row = tbody.insertRow();
+            row.style.cursor = 'pointer';
+            row.onclick = () => window.location.href = `/analytics/sessions?date=${stat.date}`;
+            
+            row.innerHTML = `
+                <td class="product-name">${stat.date}</td>
+                <td class="stat-cell">${stat.total_sessions || 0}</td>
+                <td class="stat-cell">${stat.total_queries || 0}</td>
+                <td class="stat-cell">${products}</td>
+                <td class="stat-cell">${clicks}</td>
+                <td class="ctr-value">${ctr}%</td>
+            `;
+        });
+    </script>
+</body>
+</html>
