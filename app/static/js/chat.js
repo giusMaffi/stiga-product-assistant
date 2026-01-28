@@ -40,7 +40,7 @@ const translations = {
         features: [
             "🔍 <strong>Trovare il prodotto perfetto</strong> — dimmi le tue esigenze e ti guido alla scelta migliore",
             "⚖️ <strong>Confrontare prodotti</strong> — \"Confronta l'A 6v con l'A 8v\" e ti mostro tutte le differenze",
-            "�� <strong>Rispettare il tuo budget</strong> — \"Ho 1000€, cosa mi consigli?\"",
+            "💰 <strong>Rispettare il tuo budget</strong> — \"Ho 1000€, cosa mi consigli?\"",
             "📚 <strong>Darti consigli esperti</strong> — potatura, cura del prato, manutenzione stagionale",
             "❓ <strong>Rispondere ai tuoi dubbi</strong> — sicurezza, tecnologie, installazione"
         ],
@@ -86,7 +86,7 @@ const translations = {
         welcomeTitle: "Bonjour! 👋 Je suis votre conseiller STIGA, expert en jardinage depuis 1934.",
         welcomeSubtitle: "<strong>Ce que je peux faire pour vous:</strong>",
         features: [
-            "�� <strong>Trouver le produit parfait</strong> — dites-moi vos besoins et je vous guide vers le meilleur choix",
+            "🔍 <strong>Trouver le produit parfait</strong> — dites-moi vos besoins et je vous guide vers le meilleur choix",
             "⚖️ <strong>Comparer les produits</strong> — \"Compare A 6v avec A 8v\" et je vous montre toutes les différences",
             "💰 <strong>Respecter votre budget</strong> — \"J'ai 1000€, que me conseillez-vous?\"",
             "📚 <strong>Donner des conseils d'expert</strong> — taille, entretien de la pelouse, maintenance saisonnière",
@@ -229,22 +229,32 @@ function addMessage(content, isUser = false) {
     messageDiv.appendChild(contentDiv);
     chatMessages.appendChild(messageDiv);
     scrollToBottom();
+    return messageDiv;
 }
 
-function showTypingIndicator() {
-    const typingDiv = document.createElement('div');
-    typingDiv.className = 'message assistant-message';
-    typingDiv.id = 'typing-indicator';
+function showLoadingMessage(text) {
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'message assistant-message';
+    loadingDiv.id = 'loading-indicator';
     const contentDiv = document.createElement('div');
-    contentDiv.className = 'message-content';
-    contentDiv.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
-    typingDiv.appendChild(contentDiv);
-    chatMessages.appendChild(typingDiv);
+    contentDiv.className = 'message-content loading-text';
+    contentDiv.innerHTML = `<div class="typing-indicator"><span></span><span></span><span></span></div> ${text}`;
+    loadingDiv.appendChild(contentDiv);
+    chatMessages.appendChild(loadingDiv);
     scrollToBottom();
 }
 
-function removeTypingIndicator() {
-    const indicator = document.getElementById('typing-indicator');
+function updateLoadingMessage(text) {
+    const indicator = document.getElementById('loading-indicator');
+    if (indicator) {
+        const contentDiv = indicator.querySelector('.message-content');
+        contentDiv.innerHTML = `<div class="typing-indicator"><span></span><span></span><span></span></div> ${text}`;
+        scrollToBottom();
+    }
+}
+
+function removeLoadingMessage() {
+    const indicator = document.getElementById('loading-indicator');
     if (indicator) {
         indicator.remove();
     }
@@ -286,7 +296,7 @@ function formatProductCards(products) {
     if (!products || products.length === 0) return '';
     let html = '<div class="products-section">';
     products.forEach(product => {
-        const imageUrl = product.image_url || (product.immagini && product.immagini[0]) || 'https://via.placeholder.com/300x200/00A651/ffffff?text=STIGA';
+        const imageUrl = product.image_url || (product.immagini && product.immagini[0]) || '/static/images/stiga-robot.webp';
         let desc = product.descrizione || '';
         if (desc.length > 150) {
             let cutPoint = desc.indexOf('.', 150);
@@ -299,7 +309,7 @@ function formatProductCards(products) {
         html += `
             <div class="product-card">
                 <div class="product-image">
-                    <img src="${imageUrl}" alt="${product.nome}" onerror="this.src='https://via.placeholder.com/300x200/00A651/ffffff?text=STIGA'">
+                    <img src="${imageUrl}" alt="${product.nome}" onerror="this.src='/static/images/stiga-robot.webp'">
                 </div>
                 <div class="product-info">
                     <h3>${product.nome}</h3>
@@ -317,53 +327,121 @@ function formatProductCards(products) {
     return html;
 }
 
+// ===== STREAMING SSE CHAT =====
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const message = userInput.value.trim();
     if (!message) return;
+
+    // Mostra messaggio utente
     addMessage(message, true);
     userInput.value = '';
     sendButton.disabled = true;
-    showTypingIndicator();
+
+    // Mostra loading iniziale
+    showLoadingMessage('Sto cercando nel catalogo STIGA...');
+
     try {
-        const response = await fetch('/api/chat', {
+        // Setup streaming con fetch (POST body support)
+        const response = await fetch('/api/chat/stream', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify({
                 message: message,
-                session_id: sessionId
+                session_id: sessionId,
+                language: document.getElementById('language-selector').value
             })
         });
+
         if (!response.ok) {
             throw new Error('Errore nella risposta del server');
         }
-        const data = await response.json();
-        removeTypingIndicator();
-        addMessage(data.response, false);
-        if (data.comparator) {
-            const compDiv = document.createElement('div');
-            compDiv.className = 'message assistant-message';
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.innerHTML = formatComparisonTable(data.comparator);
-            compDiv.appendChild(contentDiv);
-            chatMessages.appendChild(compDiv);
-            scrollToBottom();
-        }
-        if (data.products && data.products.length > 0) {
-            const productsDiv = document.createElement('div');
-            productsDiv.className = 'message assistant-message';
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.innerHTML = formatProductCards(data.products);
-            productsDiv.appendChild(contentDiv);
-            chatMessages.appendChild(productsDiv);
-            scrollToBottom();
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let streamingMessageDiv = null;
+        let streamingContent = '';
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (!line.trim() || !line.startsWith('data: ')) continue;
+
+                const jsonStr = line.substring(6); // Remove "data: "
+                try {
+                    const data = JSON.parse(jsonStr);
+
+                    if (data.type === 'loading') {
+                        // Aggiorna messaggio loading
+                        updateLoadingMessage(data.text);
+                    } else if (data.type === 'chunk') {
+                        // Rimuovi loading al primo chunk
+                        if (!streamingMessageDiv) {
+                            removeLoadingMessage();
+                            streamingMessageDiv = addMessage('', false);
+                        }
+
+                        // Aggiungi chunk al contenuto
+                        streamingContent += data.text;
+                        
+                        // Rimuovi tag XML che non devono essere mostrati
+                        let cleanContent = streamingContent;
+                        cleanContent = cleanContent.replace(/<prodotti>.*?<\/prodotti>/gs, '');
+                        cleanContent = cleanContent.replace(/<comparatore>.*?<\/comparatore>/gs, '');
+                        cleanContent = cleanContent.replace(/<risposta>/g, '').replace(/<\/risposta>/g, '');
+                        
+                        const contentDiv = streamingMessageDiv.querySelector('.message-content');
+                        contentDiv.innerHTML = formatMarkdown(cleanContent.trim());
+                        scrollToBottom();
+                    } else if (data.type === 'products') {
+                        // Mostra prodotti
+                        if (data.products && data.products.length > 0) {
+                            const productsDiv = document.createElement('div');
+                            productsDiv.className = 'message assistant-message';
+                            const contentDiv = document.createElement('div');
+                            contentDiv.className = 'message-content';
+                            contentDiv.innerHTML = formatProductCards(data.products);
+                            productsDiv.appendChild(contentDiv);
+                            chatMessages.appendChild(productsDiv);
+                            scrollToBottom();
+                        }
+
+                        // Mostra comparatore se presente
+                        if (data.comparator) {
+                            const compDiv = document.createElement('div');
+                            compDiv.className = 'message assistant-message';
+                            const contentDiv = document.createElement('div');
+                            contentDiv.className = 'message-content';
+                            contentDiv.innerHTML = formatComparisonTable(data.comparator);
+                            compDiv.appendChild(contentDiv);
+                            chatMessages.appendChild(compDiv);
+                            scrollToBottom();
+                        }
+                    } else if (data.type === 'done') {
+                        // Stream completato
+                        console.log('✅ Stream completed');
+                    } else if (data.type === 'error') {
+                        // Errore server
+                        throw new Error(data.message || 'Errore sconosciuto');
+                    }
+                } catch (parseError) {
+                    console.error('Error parsing SSE data:', parseError, jsonStr);
+                }
+            }
         }
     } catch (error) {
-        removeTypingIndicator();
+        removeLoadingMessage();
         addMessage('Mi dispiace, si è verificato un errore. Riprova.', false);
-        console.error('Errore:', error);
+        console.error('Errore streaming:', error);
     } finally {
         sendButton.disabled = false;
         userInput.focus();

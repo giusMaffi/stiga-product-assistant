@@ -1,6 +1,6 @@
 """
 Flask App - Stiga Product Assistant
-Production-Ready con Query Enrichment Hybrid + Fix Descrizioni + Comparatore + Widget + Analytics + HTTP Basic Auth
+Production-Ready con Query Enrichment Hybrid + Fix Descrizioni + Comparatore + Widget + Analytics + HTTP Basic Auth + STREAMING SSE
 """
 from flask import Flask, render_template, request, jsonify, Response
 from flask_cors import CORS
@@ -255,9 +255,18 @@ def parse_claude_response(response_text: str) -> tuple:
         (testo_risposta, lista_id_prodotti, comparator_data)
     """
     try:
+        # DEBUG - stampa risposta completa
+        print("\n" + "="*80)
+        print("RAW CLAUDE RESPONSE:")
+        print(response_text)
+        print("="*80 + "\n")
+        
         # Estrai testo risposta
         risposta_match = re.search(r'<risposta>(.*?)</risposta>', response_text, re.DOTALL)
         text = risposta_match.group(1).strip() if risposta_match else response_text
+        
+        # Rimuovi IDs prodotti dal testo se Claude li ha messi per errore
+        text = re.sub(r'[a-z0-9]+-[a-z0-9]+-[a-z0-9-]+(?:,[a-z0-9]+-[a-z0-9]+-[a-z0-9-]+)*$', '', text, flags=re.IGNORECASE).strip()
         
         # Estrai IDs prodotti
         prodotti_match = re.search(r'<prodotti>(.*?)</prodotti>', response_text, re.DOTALL)
@@ -486,7 +495,7 @@ def chat():
                     
                     # Gestione immagini
                     immagini = product.get('immagini', [])
-                    image_url = immagini[0] if immagini else "https://via.placeholder.com/300x200/002136/ffffff?text=STIGA"
+                    image_url = immagini[0] if immagini else "/static/images/stiga-robot.webp"
                     
                     # Estrai descrizione pulita
                     descrizione_display = clean_product_description(product)
@@ -562,6 +571,193 @@ def chat():
         
         return jsonify({'error': str(e)}), 500
 
+
+# ═══════════════════════════════════════════════════════════════════
+# STREAMING ENDPOINT SSE - NUOVO
+# ═══════════════════════════════════════════════════════════════════
+
+@app.route('/api/chat/stream', methods=['POST'])
+@auth.login_required
+def chat_stream():
+    """Endpoint streaming SSE per risposta progressiva"""
+    data = request.json
+    user_message = data.get('message', '')
+    session_id = data.get('session_id', 'default')
+    language = data.get('language', 'it')
+    
+    if not user_message:
+        return jsonify({'error': 'Message is required'}), 400
+    
+    def generate():
+        """Generator per SSE"""
+        try:
+            # Hash session
+            session_hash = hashlib.md5(session_id.encode()).hexdigest()[:8]
+            
+            # Log query
+            analytics_tracker.log_query(session_id=session_hash, query=user_message, language=language)
+            
+            # 1. LOADING IMMEDIATO
+            yield f"data: {json.dumps({'type': 'loading', 'text': 'Sto cercando nel catalogo STIGA...'}, ensure_ascii=False)}\n\n"
+            
+            # 2. Storia conversazione
+            if session_id not in conversations:
+                conversations[session_id] = {
+                    'history': [],
+                    'last_products': [],
+                    'last_products_data': []
+                }
+            
+            history = conversations[session_id]['history']
+            
+            # 3. Rileva confronto
+            confronto_keywords = ['confronta', 'confrontali', 'confronto', 'mettili a confronto', 
+                                 'compare', 'comparison', 'vs', 'differenz', 'quale scegliere']
+            is_confronto = any(kw in user_message.lower() for kw in confronto_keywords)
+            use_previous_products = False
+            
+            if is_confronto and conversations[session_id].get('last_products'):
+                new_model_match = MODELLO_PATTERN.search(user_message)
+                if not new_model_match:
+                    use_previous_products = True
+            
+            # 4. Arricchisci query
+            enriched_query = build_enriched_query(user_message, history)
+            
+            # 5. Requisiti
+            requirements = matcher.extract_requirements(enriched_query)
+            
+            # 6. RETRIEVAL
+            yield f"data: {json.dumps({'type': 'loading', 'text': 'Trovati alcuni modelli!'}, ensure_ascii=False)}\n\n"
+            
+            if use_previous_products:
+                reranked = []
+                for pid in conversations[session_id]['last_products']:
+                    product = retriever.get_product_by_id(pid)
+                    if product:
+                        reranked.append((product, 1.0, ['confronto_richiesto']))
+            else:
+                filters = {}
+                if 'categoria' in requirements:
+                    filters['categoria'] = requirements['categoria']
+                
+                products_with_scores = retriever.search(enriched_query, top_k=20, filters=filters)
+                reranked = matcher.rerank_products(products_with_scores, enriched_query)
+            
+            # Modalità show all
+            detected_category = requirements.get('categoria')
+            show_all = detect_show_all_intent(user_message, detected_category)
+            products_limit = 20 if show_all else 10
+            
+            # 7. Contesto Claude
+            products_context = claude.format_products_for_context(reranked[:products_limit])
+            
+            # 8. STREAMING CLAUDE
+            full_response = ""
+            for chunk in claude.stream_chat(
+                user_message,
+                conversation_history=history,
+                products_context=products_context
+            ):
+                full_response += chunk
+                yield f"data: {json.dumps({'type': 'chunk', 'text': chunk}, ensure_ascii=False)}\n\n"
+            
+            # 9. Parse risposta
+            response_text, selected_product_ids, comparator_data = parse_claude_response(full_response)
+            
+            # 10. Aggiorna storia
+            conversations[session_id]['history'].append({
+                'role': 'user',
+                'content': user_message
+            })
+            conversations[session_id]['history'].append({
+                'role': 'assistant',
+                'content': response_text
+            })
+            
+            # 11. Salva prodotti
+            if selected_product_ids:
+                conversations[session_id]['last_products'] = selected_product_ids
+            
+            # 12. Prepara prodotti frontend
+            products_data = []
+            
+            if selected_product_ids:
+                products_map = {prod.get('id'): (prod, score, reasons) for prod, score, reasons in reranked[:products_limit]}
+                
+                for product_id in selected_product_ids:
+                    if product_id in products_map:
+                        product, score, reasons = products_map[product_id]
+                        
+                        specs_dict = {}
+                        specs = product.get('specifiche_tecniche', {})
+                        
+                        important_keys = [
+                            'Area di taglio fino a',
+                            'Alimentazione', 
+                            'Capacità batteria',
+                            'Pendenza massima',
+                            'Larghezza di taglio',
+                            'Tempo massimo di taglio per ciclo'
+                        ]
+                        
+                        for key in important_keys:
+                            value = specs.get(key) or specs.get(f'Specifiche tecniche - {key}')
+                            if value:
+                                specs_dict[key] = value
+                        
+                        immagini = product.get('immagini', [])
+                        image_url = immagini[0] if immagini else "/static/images/stiga-robot.webp"
+                        
+                        descrizione_display = clean_product_description(product)
+                        
+                        products_data.append({
+                            'id': product.get('id'),
+                            'nome': product.get('nome'),
+                            'categoria': product.get('categoria', ''),
+                            'descrizione': descrizione_display,
+                            'prezzo': product.get('prezzo', 'Contattaci'),
+                            'prezzo_originale': product.get('prezzo_originale', ''),
+                            'url': product.get('url', ''),
+                            'image_url': image_url,
+                            'score': float(round(score, 2)),
+                            'specs': specs_dict
+                        })
+            
+            # 13. INVIA PRODOTTI
+            yield f"data: {json.dumps({'type': 'products', 'products': products_data, 'comparator': comparator_data}, ensure_ascii=False)}\n\n"
+            
+            # 14. Analytics
+            product_ids = [p.get('id', '') for p in products_data]
+            product_names = [p['nome'] for p in products_data]
+            categories = [p['categoria'] for p in products_data if p.get('categoria')]
+            
+            analytics_tracker.log_results(
+                session_id=session_hash,
+                products_count=len(products_data),
+                products_shown=product_ids,
+                product_names=product_names,
+                categories=categories,
+                has_comparison=(comparator_data is not None)
+            )
+            
+            # 15. DONE
+            yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
+            
+        except Exception as e:
+            print(f"❌ Streaming Error: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            analytics_tracker.log_error(
+                session_id=session_hash,
+                error_message=str(e),
+                error_type=type(e).__name__
+            )
+            
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+    
+    return Response(generate(), mimetype='text/event-stream')
 
 
 @app.route('/api/track/click', methods=['POST'])
