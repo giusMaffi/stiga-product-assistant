@@ -603,3 +603,92 @@ header {
         font-size: 14px;
     }
 }
+
+/* ===== PHASE 2: PRODUCT SELECTION & COMPARE ===== */
+
+/* Product card in carousel - modified for selection */
+.product-carousel .product-card {
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.product-carousel .product-card::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--stiga-blue);
+    border-radius: 6px;
+    background: white;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+/* Checkbox checked state */
+.product-carousel .product-card.selected::before {
+    background: var(--stiga-orange);
+    border-color: var(--stiga-orange);
+}
+
+.product-carousel .product-card.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 13px;
+    right: 15px;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    z-index: 11;
+}
+
+/* Selected card visual feedback */
+.product-carousel .product-card.selected {
+    border-color: var(--stiga-orange);
+    border-width: 3px;
+    box-shadow: 0 4px 20px rgba(255, 170, 0, 0.4);
+}
+
+/* Hover state for cards */
+.product-carousel .product-card:hover::before {
+    border-color: var(--stiga-orange);
+}
+
+/* Prevent link click when selecting */
+.product-carousel .product-card .product-link {
+    position: relative;
+    z-index: 5;
+}
+
+/* Compare button active state */
+.compare-button:not(:disabled) {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(255, 170, 0, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(255, 170, 0, 0);
+    }
+}
+
+/* Selection hint */
+.product-carousel::after {
+    content: 'Clicca sulle card per selezionare i prodotti da confrontare (max 3)';
+    display: block;
+    text-align: center;
+    color: #888;
+    font-size: 13px;
+    padding: 12px;
+    margin-top: 12px;
+    background: rgba(255, 170, 0, 0.05);
+    border-radius: 8px;
+}
+
+.product-carousel:empty::after {
+    display: none;
+}
