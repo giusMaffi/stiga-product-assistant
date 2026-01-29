@@ -468,6 +468,7 @@ chatForm.addEventListener('submit', async (e) => {
             throw new Error('Errore nella risposta del server');
         }
         const data = await response.json();
+        console.log('📦 Response data:', data);
         removeTypingIndicator();
         addMessage(data.response, false);
         
@@ -486,6 +487,7 @@ chatForm.addEventListener('submit', async (e) => {
         // ===== PHASE 2: Products go to display column (RIGHT) =====
         if (data.products && data.products.length > 0) {
             updateProductDisplay(data.products);
+            renderShowAllButton(data);  // ← Show "Mostra tutti" button
         }
         
     } catch (error) {
@@ -559,3 +561,52 @@ document.addEventListener('DOMContentLoaded', () => {
     trackSessionStart();
     userInput.focus();
 });
+
+// === SHOW ALL BUTTON LOGIC ===
+function renderShowAllButton(data) {
+    console.log('🔍 renderShowAllButton called:', {
+        category: data.category,
+        total_count: data.total_count,
+        products_shown: data.products?.length,
+        show_all: data.show_all
+    });
+    
+    // Rimuovi bottone esistente solo se categoria diversa
+    const existingBtn = document.querySelector('.show-all-btn');
+    if (existingBtn) {
+        const existingCategory = existingBtn.dataset.category;
+        console.log('🔄 Existing button category:', existingCategory);
+        if (existingCategory !== data.category) {
+            console.log('❌ Removing old button (different category)');
+            existingBtn.remove();
+        } else {
+            console.log('✅ Same category, keeping button');
+            return; // Stessa categoria, mantieni bottone
+        }
+    }
+    
+    // Se total_count > prodotti mostrati, aggiungi bottone
+    console.log('🔍 Check button creation:', {
+        hasCount: !!data.total_count,
+        countGreater: data.total_count > data.products?.length,
+        hasCategory: !!data.category
+    });
+    
+    if (data.total_count && data.total_count > data.products.length && data.category) {
+        const productCarousel = document.getElementById('product-carousel');
+        if (!productCarousel) return;
+        
+        const button = document.createElement('button');
+        button.className = 'show-all-btn';
+        button.dataset.category = data.category;
+        button.innerHTML = `🔍 Mostra tutti i ${data.category} (${data.total_count})`;
+        button.onclick = () => {
+            // Helper function to submit message programmatically
+            const message = `mostra tutti i ${data.category}`;
+            userInput.value = message;
+            chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+        };
+        
+        productCarousel.insertAdjacentElement('afterend', button);
+    }
+}

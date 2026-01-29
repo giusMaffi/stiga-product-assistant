@@ -551,7 +551,16 @@ def chat():
             reranked = matcher.rerank_products(products_with_scores, enriched_query)
 
         # Rileva modalità mostra tutti
-        detected_category = requirements.get('categoria')
+        # IMPORTANTE: usa extract_categoria direttamente, non requirements (che può essere vuoto)
+        current_history_with_msg = history + [{'role': 'user', 'content': user_message}]
+        detected_category_raw = extract_categoria(current_history_with_msg)
+        print(f"🔍 DEBUG detected_category from extract_categoria: {detected_category_raw}")
+        
+        # Normalizza categoria per frontend (trattorino → Trattorini da giardino)
+        detected_category = None
+        if detected_category_raw:
+            detected_category = CATEGORIA_MAPPING.get(detected_category_raw.lower(), detected_category_raw)
+            print(f"🔍 DEBUG detected_category MAPPED: {detected_category}")
         show_all = detect_show_all_intent(user_message, detected_category)
         products_limit = 20 if show_all else 10
         
@@ -559,18 +568,26 @@ def chat():
         for i, (prod, score, reasons) in enumerate(reranked[:products_limit], 1):
             print(f"   {i}. {prod.get('nome')} (ID: {prod.get('id')}) - Score: {score:.3f}")
         
-        # 6. Prepara contesto per Claude (top 10 prodotti)
-        products_context = claude.format_products_for_context(reranked[:products_limit])
-        
-        # 7. Genera risposta (Claude riceve prodotti come contesto)
-        raw_response = claude.chat(
-            user_message,
-            conversation_history=history,
-            products_context=products_context
-        )
-        
-        # 8. Parsea risposta per estrarre testo, IDs prodotti e comparatore
-        response_text, selected_product_ids, comparator_data = parse_claude_response(raw_response)
+        # 6. Se show_all, bypassa Claude e mostra tutti
+        if show_all:
+            # Modalità catalogo: mostra TUTTI i prodotti senza filtro Claude
+            selected_product_ids = [prod[0]['id'] for prod in reranked[:products_limit]]
+            response_text = f"Ecco tutti i prodotti disponibili ({len(selected_product_ids)}):"
+            comparator_data = None
+            print(f"📋 Modalità CATALOGO: mostro tutti i {len(selected_product_ids)} prodotti")
+        else:
+            # 6. Prepara contesto per Claude (top 10 prodotti)
+            products_context = claude.format_products_for_context(reranked[:products_limit])
+            
+            # 7. Genera risposta (Claude riceve prodotti come contesto)
+            raw_response = claude.chat(
+                user_message,
+                conversation_history=history,
+                products_context=products_context
+            )
+            
+            # 8. Parsea risposta per estrarre testo, IDs prodotti e comparatore
+            response_text, selected_product_ids, comparator_data = parse_claude_response(raw_response)
         
         print(f"💬 Risposta Claude: {response_text[:100]}...")
         print(f"🏷️  Prodotti selezionati da Claude: {selected_product_ids}")
@@ -672,7 +689,10 @@ def chat():
         return jsonify({
             'response': response_text,
             'products': products_data,
-            'comparator': comparator_data
+            'comparator': comparator_data,
+            'total_count': len(reranked) if reranked else 0,
+            'category': detected_category,
+            'show_all': show_all
         })
         
     except Exception as e:
@@ -775,6 +795,9 @@ def chat_stream():
             
             # Modalità show all
             detected_category = requirements.get('categoria')
+            # Normalizza categoria per frontend (trattorino → Trattorini da giardino)
+            if detected_category:
+                detected_category = CATEGORIA_MAPPING.get(detected_category.lower(), detected_category)
             show_all = detect_show_all_intent(user_message, detected_category)
             products_limit = 20 if show_all else 10
             
@@ -854,7 +877,7 @@ def chat_stream():
                         })
             
             # 13. INVIA PRODOTTI
-            yield f"data: {json.dumps({'type': 'products', 'products': products_data, 'comparator': comparator_data}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'products', 'products': products_data, 'comparator': comparator_data, 'total_count': len(reranked) if reranked else 0, 'category': detected_category, 'show_all': show_all}, ensure_ascii=False)}\n\n"
             
             # 14. Analytics
             product_ids = [p.get('id', '') for p in products_data]
