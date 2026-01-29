@@ -9,7 +9,7 @@
 </head>
 <body>
     <div class="container">
-       <!-- HEADER -->
+       <!-- ===== HEADER (IDENTICO - nessuna modifica) ===== -->
         <header>
             <div class="header-left"></div>
             <div class="header-center">
@@ -29,33 +29,64 @@
             </div>
         </header>
 
-        <!-- CHAT CONTAINER -->
-        <div class="chat-container">
-            <!-- MESSAGES AREA -->
-            <div id="chat-messages" class="chat-messages">
-                <!-- Welcome message - populated by JS -->
-                <div id="welcome-message" class="message assistant-message">
-                    <div class="message-content">
-                        <!-- Content injected by JavaScript -->
+        <!-- ===== NUOVO: Split Container 40/60 ===== -->
+        <div class="main-split-container">
+            
+            <!-- ===== COLONNA CHAT (40%) ===== -->
+            <div class="chat-column">
+                <!-- CHAT CONTAINER (stesso contenuto di prima, solo wrappato) -->
+                <div class="chat-container">
+                    <!-- MESSAGES AREA -->
+                    <div id="chat-messages" class="chat-messages">
+                        <!-- Welcome message - populated by JS -->
+                        <div id="welcome-message" class="message assistant-message">
+                            <div class="message-content">
+                                <!-- Content injected by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- INPUT AREA -->
+                    <div class="chat-input-container">
+                        <form id="chat-form">
+                            <input 
+                                type="text" 
+                                id="user-input" 
+                                placeholder="Scrivi qui la tua domanda..." 
+                                autocomplete="off"
+                            >
+                            <button type="submit" id="send-button">
+                                Invia →
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
 
-            <!-- INPUT AREA -->
-            <div class="chat-input-container">
-                <form id="chat-form">
-                    <input 
-                        type="text" 
-                        id="user-input" 
-                        placeholder="Scrivi qui la tua domanda..." 
-                        autocomplete="off"
-                    >
-                    <button type="submit" id="send-button">
-                        Invia →
+            <!-- ===== COLONNA PRODUCT DISPLAY (60%) ===== -->
+            <div class="product-display-column">
+                <!-- Header Product Display -->
+                <div class="product-display-header">
+                    <h3>Prodotti Consigliati</h3>
+                    <button id="compare-toggle" class="compare-button" disabled>
+                        Confronta (0)
                     </button>
-                </form>
+                </div>
+
+                <!-- Carousel Prodotti (popolato da JS) -->
+                <div id="product-carousel" class="product-carousel">
+                    <p class="empty-state">I prodotti appariranno qui quando inizi a chattare</p>
+                </div>
+
+                <!-- Comparison Panel (hidden by default) -->
+                <div id="comparison-panel" class="comparison-panel hidden">
+                    <!-- Popolato da JS quando user clicca compare -->
+                </div>
             </div>
+
         </div>
+        <!-- ===== END Split Container ===== -->
+        
     </div>
 
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
