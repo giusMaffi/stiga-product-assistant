@@ -94,7 +94,7 @@ CATEGORIA_PATTERNS = {
 
 MODELLO_PATTERN = re.compile(
     r'\b([A-Z]{1,3})\s*(\d+)\s*([A-Z])?\b|'
-    r'\b(Swift|Estate|Tornado|Park|Combi|Multiclip|Twinclip|Gyro|Villa|Royal|Garden|Compact|Experience)\s*(\d+)?\s*([A-Z])?\b',
+    r'\b(Swift|Estate|Tornado|Park|Combi|Multiclip|Twinclip|Collector|Gyro|Villa|Royal|Garden|Compact|Experience)\s*(\d+)?\s*([A-Z])?\b',
     re.IGNORECASE
 )
 
@@ -109,12 +109,23 @@ ALIMENTAZIONE_PATTERN = re.compile(r'\b(elettric[oa]|batteria|benzina|scoppio)\b
 
 
 def extract_categoria(messages: List[Dict]) -> Optional[str]:
-    """Estrae categoria prodotto (ultima menzione)"""
-    for msg in reversed(messages):
+    """Estrae categoria prodotto - PRIORITÀ a messaggi più recenti"""
+    # Prima controlla SOLO l'ultimo messaggio (quello corrente)
+    if messages:
+        last_msg = messages[-1].get('content', '')
+        for cat, pattern in CATEGORIA_PATTERNS.items():
+            if pattern.search(last_msg):
+                print(f"🎯 Categoria trovata nel messaggio corrente: {cat}")
+                return cat
+    
+    # Se non trovata nel corrente, cerca nella storia recente (ultimi 3 messaggi)
+    for msg in reversed(messages[-3:] if len(messages) > 3 else messages):
         content = msg.get('content', '')
         for cat, pattern in CATEGORIA_PATTERNS.items():
             if pattern.search(content):
+                print(f"🔍 Categoria trovata nella storia: {cat}")
                 return cat
+    
     return None
 
 
@@ -177,6 +188,58 @@ def extract_alimentazione(messages: List[Dict]) -> Optional[str]:
     return None
 
 
+def search_products_by_name(query: str, retriever) -> List:
+    """
+    Cerca prodotti per nome esatto quando l'utente specifica modelli
+    Usato per confronti tipo 'Estate 384 M vs Estate 384e'
+    """
+    # Estrai nomi modelli dalla query usando il pattern esistente
+    models = []
+    for match in MODELLO_PATTERN.finditer(query):
+        if match.group(4):  # Nome proprio (Estate, Swift, etc)
+            parts = [match.group(4)]
+            if match.group(5):  # Numero
+                parts.append(match.group(5))
+            if match.group(6):  # Lettera/e
+                parts.append(match.group(6))
+            model_name = ' '.join(parts).strip()
+        else:  # Codice alfanumerico (A 6v, etc)
+            parts = [match.group(1)]
+            if match.group(2):
+                parts.append(match.group(2))
+            if match.group(3):
+                parts.append(match.group(3))
+            model_name = ' '.join(parts).strip()
+        
+        if model_name:
+            # Pulisci congiunzioni e parole comuni
+            cleaned = model_name.lower().strip()
+            # Rimuovi " e " alla fine (congiunzione italiana)
+            cleaned = cleaned.rstrip(' e').rstrip(' and').rstrip(' vs')
+            if cleaned:
+                models.append(cleaned)
+    
+    if not models:
+        return []
+    
+    print(f"🔍 Ricerca diretta per modelli: {models}")
+    
+    # Cerca nei prodotti
+    all_products = retriever.products  # Accesso diretto al DB
+    found = []
+    
+    for model in models:
+        for product in all_products:
+            product_name = product.get('nome', '').lower()
+            # Match esatto o contenuto
+            if model == product_name or model in product_name:
+                found.append((product, 1.0, ['nome_esatto']))  # Score 1.0 per match esatto
+                print(f"   ✅ Trovato: {product.get('nome')} (ID: {product.get('id')})")
+                break
+    
+    return found
+
+
 def detect_show_all_intent(user_message: str, detected_category: str = None) -> bool:
     message_lower = user_message.lower()
     show_all_keywords = ['tutti', 'all', 'tutta la gamma', 'mostrami tutto', 'fammi vedere tutti', 'mostrami tutti', 'elenca tutti', 'voglio vedere tutti', 'dammi tutti', 'quali sono tutti']
@@ -224,8 +287,9 @@ def build_enriched_query(user_message: str, conversation_history: List[Dict]) ->
     if context['modello']:
         enriched_parts.append(context['modello'])
     
-    if context['categoria']:
-        enriched_parts.append(context['categoria'])
+    # DISABILITATO: Non aggiungere categoria dalla storia (causa conflitti)
+    # if context['categoria']:
+    #     enriched_parts.append(context['categoria'])
     
     if context['dimensioni']:
         enriched_parts.append(context['dimensioni'])
@@ -412,6 +476,18 @@ def chat():
                 if product:
                     reranked.append((product, 1.0, ['confronto_richiesto']))
             print(f"📦 Uso {len(reranked)} prodotti precedenti per confronto")
+        elif is_confronto and MODELLO_PATTERN.search(user_message):
+            # Confronto con modelli specifici → ricerca diretta per nome
+            print("🎯 Confronto con modelli specifici - uso ricerca diretta")
+            reranked = search_products_by_name(user_message, retriever)
+            if not reranked:
+                print("⚠️ Ricerca diretta fallita, uso retrieval semantico")
+                # Fallback a retrieval normale
+                filters = {}
+                if 'categoria' in requirements:
+                    filters['categoria'] = requirements['categoria']
+                products_with_scores = retriever.search(enriched_query, top_k=20, filters=filters)
+                reranked = matcher.rerank_products(products_with_scores, enriched_query)
         else:
             # Flusso normale: retrieval + reranking
             filters = {}

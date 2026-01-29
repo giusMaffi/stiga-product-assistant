@@ -1,9 +1,12 @@
 """
-Claude API Client with Prompt Caching + Streaming Support
+Claude API Client with Prompt Caching + Streaming Support + Cost Tracking
 """
 import anthropic
 from typing import List, Dict, Tuple, Iterator
 from ..config import ANTHROPIC_API_KEY, MODEL_NAME, MAX_TOKENS, MODEL_TEMPERATURE, SYSTEM_PROMPT
+import csv
+from datetime import datetime
+from pathlib import Path
 
 
 class ClaudeClient:
@@ -14,13 +17,100 @@ class ClaudeClient:
         print("🔄 Inizializzazione Claude Client...")
         self.client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         self.model = MODEL_NAME
+        
+        # Setup CSV logging per costi
+        self.logs_dir = Path(__file__).parent.parent.parent / 'logs'
+        self.logs_dir.mkdir(exist_ok=True)
+        self.token_log_path = self.logs_dir / 'token_usage.csv'
+        
+        # Crea CSV se non esiste
+        if not self.token_log_path.exists():
+            with open(self.token_log_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    'timestamp', 'endpoint', 'input_tokens', 'cached_tokens', 
+                    'output_tokens', 'cost_usd', 'cost_input', 'cost_cached', 'cost_output'
+                ])
+        
         print("✅ Claude Client pronto!")
+    
+    def _log_token_usage(self, endpoint: str, input_tokens: int, cached_tokens: int, output_tokens: int):
+        """Salva usage tokens e calcola costi"""
+        # Pricing Claude Sonnet 4 (per 1M tokens)
+        PRICE_INPUT = 3.00
+        PRICE_CACHED = 0.30
+        PRICE_OUTPUT = 15.00
+        
+        # Calcola costi
+        cost_input = (input_tokens / 1_000_000) * PRICE_INPUT
+        cost_cached = (cached_tokens / 1_000_000) * PRICE_CACHED
+        cost_output = (output_tokens / 1_000_000) * PRICE_OUTPUT
+        cost_total = cost_input + cost_cached + cost_output
+        
+        # Salva in CSV
+        try:
+            with open(self.token_log_path, 'a', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    datetime.now().isoformat(),
+                    endpoint,
+                    input_tokens,
+                    cached_tokens,
+                    output_tokens,
+                    f"{cost_total:.6f}",
+                    f"{cost_input:.6f}",
+                    f"{cost_cached:.6f}",
+                    f"{cost_output:.6f}"
+                ])
+        except Exception as e:
+            print(f"⚠️ Errore log token usage: {e}")
     
     def format_products_for_context(self, products_with_scores: List[Tuple]) -> str:
         """Formatta prodotti per Claude - SOLO campi essenziali"""
         products_for_context = []
-        ESSENTIAL = ['Area di taglio fino a', 'Alimentazione', 'Capacità batteria', 
-                     'Pendenza massima', 'Larghezza di taglio', 'Tempo massimo di taglio per ciclo']
+        ESSENTIAL = [
+            # UNIVERSALI (tutti i prodotti)
+            'Alimentazione',
+            'Peso prodotto',
+            'Larghezza prodotto',
+            'Lunghezza prodotto',
+            
+            # ROBOT TAGLIAERBA
+            'Area di taglio fino a',
+            'Capacità batteria',
+            'Altezze di taglio',
+            'Pendenza massima',
+            'Larghezza di taglio',
+            'Tempo massimo di taglio per ciclo',
+            
+            # TRATTORINI
+            'Cilindrata',
+            'Capacità sacco raccolta',
+            'Area di taglioinfo_outline',
+            'Brand motore',
+            'Capacità serbatoio carburante',
+            'Numero di marce avanti',
+            
+            # DECESPUGLIATORI
+            'Capacità batteria (consigliata)',
+            'Capacità serbatoio carburante',
+            'Diametro filo di nylon (millimetri)',
+            'Cilindrata',
+            'Avviamento',
+            
+            # TAGLIAERBA
+            'Capacità sacco raccolta',
+            'Altezze di taglio',
+            'Avanzamento',
+            'Cilindrata',
+            'Capacità batteria',
+            
+            # ALTRI
+            'Potenza',
+            'Velocità dell\'aria',
+            'Pressione',
+            'Larghezza di taglio'
+        ]
         
         for item in products_with_scores:
             if len(item) == 2:
@@ -106,7 +196,14 @@ RICORDA: Usa gli ID COMPLETI esatti dal JSON sopra nel tag <prodotti>."""
         
         # Log usage per monitoring
         usage = response.usage
-        print(f"📊 Tokens - Input: {usage.input_tokens} | Cached: {getattr(usage, 'cache_read_input_tokens', 0)} | Output: {usage.output_tokens}")
+        input_tokens = usage.input_tokens
+        cached_tokens = getattr(usage, 'cache_read_input_tokens', 0)
+        output_tokens = usage.output_tokens
+        
+        print(f"📊 Tokens - Input: {input_tokens} | Cached: {cached_tokens} | Output: {output_tokens}")
+        
+        # Salva in CSV per analisi costi
+        self._log_token_usage('chat', input_tokens, cached_tokens, output_tokens)
         
         return response.content[0].text
     
@@ -168,4 +265,11 @@ RICORDA: Usa gli ID COMPLETI esatti dal JSON sopra nel tag <prodotti>."""
         # Log finale
         final_message = stream.get_final_message()
         usage = final_message.usage
-        print(f"📊 Streaming Tokens - Input: {usage.input_tokens} | Cached: {getattr(usage, 'cache_read_input_tokens', 0)} | Output: {usage.output_tokens}")
+        input_tokens = usage.input_tokens
+        cached_tokens = getattr(usage, 'cache_read_input_tokens', 0)
+        output_tokens = usage.output_tokens
+        
+        print(f"📊 Streaming Tokens - Input: {input_tokens} | Cached: {cached_tokens} | Output: {output_tokens}")
+        
+        # Salva in CSV per analisi costi
+        self._log_token_usage('stream', input_tokens, cached_tokens, output_tokens)

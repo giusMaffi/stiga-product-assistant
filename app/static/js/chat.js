@@ -361,7 +361,7 @@ function formatProductCardsMinimal(products) {
         }
         
         html += `
-            <div class="product-card" data-product-index="${index}">
+            <div class="product-card" data-product-index="${index}" data-product-id="${product.id || ''}" onclick="handleProductCardClick(event, ${index})">
                 <div class="product-image">
                     <img src="${imageUrl}" alt="${product.nome}" onerror="this.src='https://via.placeholder.com/300x200/00A651/ffffff?text=STIGA'">
                 </div>
@@ -370,7 +370,7 @@ function formatProductCardsMinimal(products) {
                     ${product.categoria ? `<div class="product-category">${product.categoria}</div>` : ''}
                     <div class="product-description">${briefDesc}</div>
                     ${product.prezzo ? `<div class="product-price">${product.prezzo}</div>` : ''}
-                    <a href="${product.url}" target="_blank" class="product-link" onclick="trackProductClick('${product.id || ''}', '${product.nome.replace(/'/g, "\\'")}', '${product.categoria || ''}'); return true;">
+                    <a href="${product.url}" target="_blank" class="product-link" onclick="event.stopPropagation(); trackProductClick('${product.id || ''}', '${product.nome.replace(/'/g, "\\'")}', '${product.categoria || ''}'); return true;">
                         Vedi dettagli →
                     </a>
                 </div>
@@ -435,6 +435,16 @@ function updateSelectionUI() {
     });
 }
 
+// ===== PRODUCT CARD CLICK HANDLER =====
+function handleProductCardClick(event, productIndex) {
+    // Don't trigger if clicking on link
+    if (event.target.closest('.product-link')) {
+        return;
+    }
+    
+    toggleProductSelection(productIndex);
+}
+
 // ===== CHAT FORM SUBMIT (MODIFIED FOR PHASE 2) =====
 
 chatForm.addEventListener('submit', async (e) => {
@@ -492,6 +502,56 @@ document.getElementById('language-selector').addEventListener('change', (e) => {
     const newLang = e.target.value;
     localStorage.setItem('stiga-lang', newLang);
     updateWelcomeMessage(newLang);
+});
+
+// ===== COMPARE BUTTON CLICK HANDLER =====
+document.getElementById('compare-toggle')?.addEventListener('click', () => {
+    if (selectedProductsForCompare.length < 2) return;
+    
+    const productNames = selectedProductsForCompare.map(p => p.nome).join(' e ');
+    const compareMessage = `Confronta questi prodotti: ${productNames}`;
+    
+    addMessage(compareMessage, true);
+    sendButton.disabled = true;
+    showTypingIndicator();
+    
+    fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            message: compareMessage,
+            session_id: sessionId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        removeTypingIndicator();
+        addMessage(data.response, false);
+        
+        if (data.comparator) {
+            const compDiv = document.createElement('div');
+            compDiv.className = 'message assistant-message';
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = formatComparisonTable(data.comparator);
+            compDiv.appendChild(contentDiv);
+            chatMessages.appendChild(compDiv);
+            scrollToBottom();
+        }
+        
+        // Reset selection
+        selectedProductsForCompare = [];
+        updateCompareButton();
+        updateSelectionUI();
+    })
+    .catch(error => {
+        removeTypingIndicator();
+        addMessage('Errore durante il confronto. Riprova.', false);
+        console.error('Compare error:', error);
+    })
+    .finally(() => {
+        sendButton.disabled = false;
+    });
 });
 
 document.addEventListener('DOMContentLoaded', () => {
