@@ -14,6 +14,7 @@
     --shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
+/* ===== MODIFICATO: Full-width layout (Task 1.1) ===== */
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     background-image: url('/static/images/stiga-robot.webp');
@@ -21,17 +22,20 @@ body {
     background-position: center;
     background-attachment: fixed;
     min-height: 100vh;
-    padding: 20px;
+    padding: 0;        /* CHANGED: was 20px */
+    margin: 0;         /* ADDED */
 }
 
+/* ===== MODIFICATO: Full-width container (Task 1.1) ===== */
 .container {
-    max-width: 900px;
-    margin: 0 auto;
+    max-width: 100%;                    /* CHANGED: was 900px */
+    width: 100%;                        /* ADDED */
+    margin: 0;                          /* CHANGED: was 0 auto */
     background: white;
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow);
+    border-radius: 0;                   /* CHANGED: was var(--border-radius) */
+    box-shadow: none;                   /* CHANGED: was var(--shadow) */
     overflow: hidden;
-    height: 90vh;
+    height: 100vh;                      /* CHANGED: was 90vh */
     display: flex;
     flex-direction: column;
 }
