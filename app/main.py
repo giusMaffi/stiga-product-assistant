@@ -92,6 +92,26 @@ CATEGORIA_PATTERNS = {
     'arieggiatore': re.compile(r'\barieggiat\w+|\bscarificat\w+', re.IGNORECASE)
 }
 
+
+# Mapping categorie estratte → categorie DB
+CATEGORIA_MAPPING = {
+    'robot tagliaerba': 'Robot tagliaerba',
+    'robot': 'Robot tagliaerba',
+    'trattorino': 'Trattorini da giardino',
+    'trattorini': 'Trattorini da giardino',
+    'trattorini da giardino': 'Trattorini da giardino',
+    'tagliaerba': 'Tagliaerba',
+    'decespugliatore': 'Decespugliatori',
+    'decespugliatori': 'Decespugliatori',
+    'motosega': 'Motoseghe',
+    'motoseghe': 'Motoseghe',
+    'tagliasiepi': 'Tagliasiepi',
+    'soffiatore': 'Soffiatori e aspiratori',
+    'soffiatori': 'Soffiatori e aspiratori',
+    'idropulitrice': 'Idropulitrici ad alta pressione',
+    'idropulitrici': 'Idropulitrici ad alta pressione',
+}
+
 MODELLO_PATTERN = re.compile(
     r'\b([A-Z]{1,3})\s*(\d+)\s*([A-Z])?\b|'
     r'\b(Swift|Estate|Tornado|Park|Combi|Multiclip|Twinclip|Collector|Gyro|Villa|Royal|Garden|Compact|Experience)\s*(\d+)?\s*([A-Z])?\b',
@@ -195,8 +215,14 @@ def search_products_by_name(query: str, retriever) -> List:
     """
     # Step 1: Pulisci query da parole chiave
     clean_query = query.lower()
-    for word in ['confronta', 'confrontare', 'compare', 'vs', 'versus', 'differenza', 'differenze']:
-        clean_query = clean_query.replace(word, '')
+    for word in ['confronta', 'confrontare', 'compare', 'vs', 'versus', 'differenza', 'differenze', 
+                 'questi prodotti', 'prodotti', 'prodotto', 'modelli', 'modello', 'il modello',
+                 'i modelli', ':']:
+        clean_query = clean_query.replace(word, ' ')
+    
+    # Rimuovi spazi multipli
+    import re as regex
+    clean_query = regex.sub(r'\s+', ' ', clean_query).strip()
     
     # Step 2: Splitta su congiunzioni
     # Usa regex per splittare su: " e ", " and ", " vs ", " con "
@@ -482,7 +508,9 @@ def chat():
                 print(f"🔄 Confronto richiesto - uso prodotti precedenti: {conversations[session_id]['last_products']}")
         
         # 3. Arricchisci query con contesto conversazionale
-        enriched_query = build_enriched_query(user_message, history)
+        # Includi messaggio corrente nella storia per extract_categoria
+        current_history = history + [{'role': 'user', 'content': user_message}]
+        enriched_query = build_enriched_query(user_message, current_history)
         
         # 4. Estrai requisiti per creare filtri
         requirements = matcher.extract_requirements(enriched_query)
@@ -505,14 +533,16 @@ def chat():
                 # Fallback a retrieval normale
                 filters = {}
                 if 'categoria' in requirements:
-                    filters['categoria'] = requirements['categoria']
+                    cat = requirements['categoria']
+                    filters['categoria'] = CATEGORIA_MAPPING.get(cat.lower(), cat)
                 products_with_scores = retriever.search(enriched_query, top_k=20, filters=filters)
                 reranked = matcher.rerank_products(products_with_scores, enriched_query)
         else:
             # Flusso normale: retrieval + reranking
             filters = {}
             if 'categoria' in requirements:
-                filters['categoria'] = requirements['categoria']
+                cat = requirements['categoria']
+                filters['categoria'] = CATEGORIA_MAPPING.get(cat.lower(), cat)
                 print(f"🔍 Filtro categoria attivo: {filters['categoria']}")
             
             products_with_scores = retriever.search(enriched_query, top_k=20, filters=filters)
@@ -718,7 +748,9 @@ def chat_stream():
                     use_previous_products = True
             
             # 4. Arricchisci query
-            enriched_query = build_enriched_query(user_message, history)
+            # Includi messaggio corrente nella storia per extract_categoria
+            current_history = history + [{'role': 'user', 'content': user_message}]
+            enriched_query = build_enriched_query(user_message, current_history)
             
             # 5. Requisiti
             requirements = matcher.extract_requirements(enriched_query)
@@ -735,7 +767,8 @@ def chat_stream():
             else:
                 filters = {}
                 if 'categoria' in requirements:
-                    filters['categoria'] = requirements['categoria']
+                    cat = requirements['categoria']
+                    filters['categoria'] = CATEGORIA_MAPPING.get(cat.lower(), cat)
                 
                 products_with_scores = retriever.search(enriched_query, top_k=20, filters=filters)
                 reranked = matcher.rerank_products(products_with_scores, enriched_query)

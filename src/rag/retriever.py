@@ -133,7 +133,17 @@ class ProductRetriever:
         cerca_accessori = is_accessory_query(query)
         
         # Check per match esatto categoria SOLO se NON cerca accessori
-        if not cerca_accessori:
+        # Verifica se c'è categoria ESPLICITA nella query
+        query_lower = query.lower()
+        has_explicit_category = any(
+            cat_word in query_lower 
+            for cat_word in ['robot', 'trattorini', 'trattorino', 'tagliaerba', 
+                            'decespugliator', 'motosega', 'soffiator', 'idropulitric',
+                            'tagliasiepi', 'spazzaneve']
+        )
+        
+        if not cerca_accessori or has_explicit_category:
+            # NON cerca accessori OPPURE ha categoria esplicita
             exact_category = self._detect_exact_category_match(query)
             
             if exact_category:

@@ -94,12 +94,19 @@ class ProductMatcher:
         requirements = {}
         query_lower = query.lower()
         
-        # 🆕 FIX ANTI-ALLUCINAZIONE: Se cerca accessori, NON filtrare per categoria prodotto
+        # 🆕 FIX: Priorità a categoria esplicita nella query
         cerca_accessori = is_accessory_query(query)
         
-        if cerca_accessori:
-            # L'utente cerca accessori, non il prodotto principale
-            # NON estrarre categoria come filtro altrimenti trova trattorini invece di accessori per trattorini
+        # Verifica se c'è categoria ESPLICITA nella query (es: "hai robot", "trattorini?")
+        has_explicit_category = any(
+            cat_word in query_lower 
+            for cat_word in ['robot', 'trattorini', 'trattorino', 'tagliaerba', 
+                            'decespugliator', 'motosega', 'soffiator', 'idropulitric',
+                            'tagliasiepi', 'spazzaneve']
+        )
+        
+        if cerca_accessori and not has_explicit_category:
+            # Cerca accessori E non c'è categoria esplicita → skip filtro
             print("🔧 Rilevata ricerca accessori - SKIP filtro categoria prodotto")
         else:
             # Estrai categoria SOLO se NON cerca accessori
