@@ -190,52 +190,72 @@ def extract_alimentazione(messages: List[Dict]) -> Optional[str]:
 
 def search_products_by_name(query: str, retriever) -> List:
     """
-    Cerca prodotti per nome esatto quando l'utente specifica modelli
-    Usato per confronti tipo 'Estate 384 M vs Estate 384e'
+    Cerca prodotti per nome quando l'utente specifica modelli in un confronto.
+    Approccio generale: splitta la query sulle congiunzioni e cerca ogni parte.
     """
-    # Estrai nomi modelli dalla query usando il pattern esistente
-    models = []
-    for match in MODELLO_PATTERN.finditer(query):
-        if match.group(4):  # Nome proprio (Estate, Swift, etc)
-            parts = [match.group(4)]
-            if match.group(5):  # Numero
-                parts.append(match.group(5))
-            if match.group(6):  # Lettera/e
-                parts.append(match.group(6))
-            model_name = ' '.join(parts).strip()
-        else:  # Codice alfanumerico (A 6v, etc)
-            parts = [match.group(1)]
-            if match.group(2):
-                parts.append(match.group(2))
-            if match.group(3):
-                parts.append(match.group(3))
-            model_name = ' '.join(parts).strip()
-        
-        if model_name:
-            # Pulisci congiunzioni e parole comuni
-            cleaned = model_name.lower().strip()
-            # Rimuovi " e " alla fine (congiunzione italiana)
-            cleaned = cleaned.rstrip(' e').rstrip(' and').rstrip(' vs')
-            if cleaned:
-                models.append(cleaned)
+    # Step 1: Pulisci query da parole chiave
+    clean_query = query.lower()
+    for word in ['confronta', 'confrontare', 'compare', 'vs', 'versus', 'differenza', 'differenze']:
+        clean_query = clean_query.replace(word, '')
     
-    if not models:
+    # Step 2: Splitta su congiunzioni
+    # Usa regex per splittare su: " e ", " and ", " vs ", " con "
+    import re
+    parts = re.split(r'\s+(?:e|and|vs|con)\s+', clean_query)
+    
+    # Step 3: Pulisci ogni parte
+    model_names = []
+    for part in parts:
+        # Rimuovi articoli e pulisci
+        clean = part.strip()
+        for article in ['il ', 'lo ', 'la ', 'i ', 'gli ', 'le ', 'un ', 'uno ', 'una ']:
+            if clean.startswith(article):
+                clean = clean[len(article):]
+        clean = clean.strip()
+        if clean and len(clean) > 2:  # Almeno 3 caratteri
+            model_names.append(clean)
+    
+    if not model_names:
         return []
     
-    print(f"🔍 Ricerca diretta per modelli: {models}")
+    print(f"🔍 Ricerca diretta per modelli: {model_names}")
     
-    # Cerca nei prodotti
-    all_products = retriever.products  # Accesso diretto al DB
+    # Step 4: Cerca nel DB
+    all_products = retriever.products
     found = []
     
-    for model in models:
+    for model in model_names:
+        best_match = None
+        best_score = 0
+        
         for product in all_products:
             product_name = product.get('nome', '').lower()
-            # Match esatto o contenuto
-            if model == product_name or model in product_name:
-                found.append((product, 1.0, ['nome_esatto']))  # Score 1.0 per match esatto
-                print(f"   ✅ Trovato: {product.get('nome')} (ID: {product.get('id')})")
+            
+            # Match esatto (score 1.0)
+            if model == product_name:
+                best_match = (product, 1.0, ['nome_esatto'])
+                best_score = 1.0
                 break
+            
+            # Match prefisso esatto (score 0.95)
+            # "a 8" matcha "a 8v" ma non "filo a sezione"
+            elif product_name.startswith(model + ' '):
+                if best_score < 0.95:
+                    best_match = (product, 0.95, ['nome_prefisso'])
+                    best_score = 0.95
+            
+            # Match contenuto all'inizio (score 0.9)
+            # Per nomi composti tipo "BL 100e Kit"
+            elif product_name.startswith(model):
+                if best_score < 0.9:
+                    best_match = (product, 0.9, ['nome_inizio'])
+                    best_score = 0.9
+        
+        if best_match:
+            found.append(best_match)
+            print(f"   ✅ Trovato: {best_match[0].get('nome')} (ID: {best_match[0].get('id')})")
+        else:
+            print(f"   ⚠️  Non trovato: '{model}'")
     
     return found
 
