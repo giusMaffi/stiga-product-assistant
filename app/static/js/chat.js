@@ -1,3 +1,7 @@
+// ===== STATE MANAGEMENT FOR PRODUCT DISPLAY =====
+let currentProductsInDisplay = [];
+let selectedProductsForCompare = [];
+
 // ===== POSTGRESQL ANALYTICS TRACKING =====
 async function trackProductClick(productId, productName, productCategory) {
     try {
@@ -229,32 +233,22 @@ function addMessage(content, isUser = false) {
     messageDiv.appendChild(contentDiv);
     chatMessages.appendChild(messageDiv);
     scrollToBottom();
-    return messageDiv;
 }
 
-function showLoadingMessage(text) {
-    const loadingDiv = document.createElement('div');
-    loadingDiv.className = 'message assistant-message';
-    loadingDiv.id = 'loading-indicator';
+function showTypingIndicator() {
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'message assistant-message';
+    typingDiv.id = 'typing-indicator';
     const contentDiv = document.createElement('div');
-    contentDiv.className = 'message-content loading-text';
-    contentDiv.innerHTML = `<div class="typing-indicator"><span></span><span></span><span></span></div> ${text}`;
-    loadingDiv.appendChild(contentDiv);
-    chatMessages.appendChild(loadingDiv);
+    contentDiv.className = 'message-content';
+    contentDiv.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+    typingDiv.appendChild(contentDiv);
+    chatMessages.appendChild(typingDiv);
     scrollToBottom();
 }
 
-function updateLoadingMessage(text) {
-    const indicator = document.getElementById('loading-indicator');
-    if (indicator) {
-        const contentDiv = indicator.querySelector('.message-content');
-        contentDiv.innerHTML = `<div class="typing-indicator"><span></span><span></span><span></span></div> ${text}`;
-        scrollToBottom();
-    }
-}
-
-function removeLoadingMessage() {
-    const indicator = document.getElementById('loading-indicator');
+function removeTypingIndicator() {
+    const indicator = document.getElementById('typing-indicator');
     if (indicator) {
         indicator.remove();
     }
@@ -292,11 +286,12 @@ function formatComparisonTable(comparatorData) {
     return html;
 }
 
+// ===== OLD FUNCTION (kept for backward compatibility in chat) =====
 function formatProductCards(products) {
     if (!products || products.length === 0) return '';
     let html = '<div class="products-section">';
     products.forEach(product => {
-        const imageUrl = product.image_url || (product.immagini && product.immagini[0]) || '/static/images/stiga-robot.webp';
+        const imageUrl = product.image_url || (product.immagini && product.immagini[0]) || 'https://via.placeholder.com/300x200/00A651/ffffff?text=STIGA';
         let desc = product.descrizione || '';
         if (desc.length > 150) {
             let cutPoint = desc.indexOf('.', 150);
@@ -309,7 +304,7 @@ function formatProductCards(products) {
         html += `
             <div class="product-card">
                 <div class="product-image">
-                    <img src="${imageUrl}" alt="${product.nome}" onerror="this.src='/static/images/stiga-robot.webp'">
+                    <img src="${imageUrl}" alt="${product.nome}" onerror="this.src='https://via.placeholder.com/300x200/00A651/ffffff?text=STIGA'">
                 </div>
                 <div class="product-info">
                     <h3>${product.nome}</h3>
@@ -327,121 +322,166 @@ function formatProductCards(products) {
     return html;
 }
 
-// ===== STREAMING SSE CHAT =====
+// ===== PHASE 2: NEW PRODUCT DISPLAY FUNCTIONS =====
+
+function updateProductDisplay(products) {
+    if (!products || products.length === 0) return;
+    
+    // Update state
+    currentProductsInDisplay = products;
+    
+    // Get carousel container
+    const carousel = document.getElementById('product-carousel');
+    if (!carousel) {
+        console.error('Product carousel not found');
+        return;
+    }
+    
+    // Render products in carousel
+    carousel.innerHTML = formatProductCardsMinimal(products);
+    
+    // Reset compare selection
+    selectedProductsForCompare = [];
+    updateCompareButton();
+}
+
+function formatProductCardsMinimal(products) {
+    if (!products || products.length === 0) {
+        return '<p class="empty-state">I prodotti appariranno qui quando inizi a chattare</p>';
+    }
+    
+    let html = '';
+    products.forEach((product, index) => {
+        const imageUrl = product.image_url || (product.immagini && product.immagini[0]) || 'https://via.placeholder.com/300x200/00A651/ffffff?text=STIGA';
+        
+        // Brief description (first 80 chars)
+        let briefDesc = product.descrizione || '';
+        if (briefDesc.length > 80) {
+            briefDesc = briefDesc.substring(0, 80).trim() + '...';
+        }
+        
+        html += `
+            <div class="product-card" data-product-index="${index}">
+                <div class="product-image">
+                    <img src="${imageUrl}" alt="${product.nome}" onerror="this.src='https://via.placeholder.com/300x200/00A651/ffffff?text=STIGA'">
+                </div>
+                <div class="product-info">
+                    <h3>${product.nome}</h3>
+                    ${product.categoria ? `<div class="product-category">${product.categoria}</div>` : ''}
+                    <div class="product-description">${briefDesc}</div>
+                    ${product.prezzo ? `<div class="product-price">${product.prezzo}</div>` : ''}
+                    <a href="${product.url}" target="_blank" class="product-link" onclick="trackProductClick('${product.id || ''}', '${product.nome.replace(/'/g, "\\'")}', '${product.categoria || ''}'); return true;">
+                        Vedi dettagli →
+                    </a>
+                </div>
+            </div>
+        `;
+    });
+    
+    return html;
+}
+
+function toggleProductSelection(productIndex) {
+    const product = currentProductsInDisplay[productIndex];
+    if (!product) return;
+    
+    const index = selectedProductsForCompare.findIndex(p => p.id === product.id);
+    
+    if (index > -1) {
+        // Deselect
+        selectedProductsForCompare.splice(index, 1);
+    } else {
+        // Select (max 3)
+        if (selectedProductsForCompare.length >= 3) {
+            alert('Puoi confrontare massimo 3 prodotti alla volta');
+            return;
+        }
+        selectedProductsForCompare.push(product);
+    }
+    
+    updateCompareButton();
+    updateSelectionUI();
+}
+
+function updateCompareButton() {
+    const compareBtn = document.getElementById('compare-toggle');
+    if (!compareBtn) return;
+    
+    const count = selectedProductsForCompare.length;
+    
+    if (count >= 2) {
+        compareBtn.disabled = false;
+        compareBtn.textContent = `Confronta (${count})`;
+    } else {
+        compareBtn.disabled = true;
+        compareBtn.textContent = 'Confronta (0)';
+    }
+}
+
+function updateSelectionUI() {
+    // Update visual state of selected products
+    const cards = document.querySelectorAll('.product-card');
+    cards.forEach((card, index) => {
+        const product = currentProductsInDisplay[index];
+        if (!product) return;
+        
+        const isSelected = selectedProductsForCompare.some(p => p.id === product.id);
+        
+        if (isSelected) {
+            card.classList.add('selected');
+        } else {
+            card.classList.remove('selected');
+        }
+    });
+}
+
+// ===== CHAT FORM SUBMIT (MODIFIED FOR PHASE 2) =====
+
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const message = userInput.value.trim();
     if (!message) return;
-
-    // Mostra messaggio utente
     addMessage(message, true);
     userInput.value = '';
     sendButton.disabled = true;
-
-    // Mostra loading iniziale
-    showLoadingMessage('Sto cercando nel catalogo STIGA...');
-
+    showTypingIndicator();
     try {
-        // Setup streaming con fetch (POST body support)
-        const response = await fetch('/api/chat/stream', {
+        const response = await fetch('/api/chat', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message: message,
-                session_id: sessionId,
-                language: document.getElementById('language-selector').value
+                session_id: sessionId
             })
         });
-
         if (!response.ok) {
             throw new Error('Errore nella risposta del server');
         }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let streamingMessageDiv = null;
-        let streamingContent = '';
-
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n\n');
-            buffer = lines.pop() || '';
-
-            for (const line of lines) {
-                if (!line.trim() || !line.startsWith('data: ')) continue;
-
-                const jsonStr = line.substring(6); // Remove "data: "
-                try {
-                    const data = JSON.parse(jsonStr);
-
-                    if (data.type === 'loading') {
-                        // Aggiorna messaggio loading
-                        updateLoadingMessage(data.text);
-                    } else if (data.type === 'chunk') {
-                        // Rimuovi loading al primo chunk
-                        if (!streamingMessageDiv) {
-                            removeLoadingMessage();
-                            streamingMessageDiv = addMessage('', false);
-                        }
-
-                        // Aggiungi chunk al contenuto
-                        streamingContent += data.text;
-                        
-                        // Rimuovi tag XML che non devono essere mostrati
-                        let cleanContent = streamingContent;
-                        cleanContent = cleanContent.replace(/<prodotti>.*?<\/prodotti>/gs, '');
-                        cleanContent = cleanContent.replace(/<comparatore>.*?<\/comparatore>/gs, '');
-                        cleanContent = cleanContent.replace(/<risposta>/g, '').replace(/<\/risposta>/g, '');
-                        
-                        const contentDiv = streamingMessageDiv.querySelector('.message-content');
-                        contentDiv.innerHTML = formatMarkdown(cleanContent.trim());
-                        scrollToBottom();
-                    } else if (data.type === 'products') {
-                        // Mostra prodotti
-                        if (data.products && data.products.length > 0) {
-                            const productsDiv = document.createElement('div');
-                            productsDiv.className = 'message assistant-message';
-                            const contentDiv = document.createElement('div');
-                            contentDiv.className = 'message-content';
-                            contentDiv.innerHTML = formatProductCards(data.products);
-                            productsDiv.appendChild(contentDiv);
-                            chatMessages.appendChild(productsDiv);
-                            scrollToBottom();
-                        }
-
-                        // Mostra comparatore se presente
-                        if (data.comparator) {
-                            const compDiv = document.createElement('div');
-                            compDiv.className = 'message assistant-message';
-                            const contentDiv = document.createElement('div');
-                            contentDiv.className = 'message-content';
-                            contentDiv.innerHTML = formatComparisonTable(data.comparator);
-                            compDiv.appendChild(contentDiv);
-                            chatMessages.appendChild(compDiv);
-                            scrollToBottom();
-                        }
-                    } else if (data.type === 'done') {
-                        // Stream completato
-                        console.log('✅ Stream completed');
-                    } else if (data.type === 'error') {
-                        // Errore server
-                        throw new Error(data.message || 'Errore sconosciuto');
-                    }
-                } catch (parseError) {
-                    console.error('Error parsing SSE data:', parseError, jsonStr);
-                }
-            }
+        const data = await response.json();
+        removeTypingIndicator();
+        addMessage(data.response, false);
+        
+        // Comparator (remains in chat)
+        if (data.comparator) {
+            const compDiv = document.createElement('div');
+            compDiv.className = 'message assistant-message';
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = formatComparisonTable(data.comparator);
+            compDiv.appendChild(contentDiv);
+            chatMessages.appendChild(compDiv);
+            scrollToBottom();
         }
+        
+        // ===== PHASE 2: Products go to display column (RIGHT) =====
+        if (data.products && data.products.length > 0) {
+            updateProductDisplay(data.products);
+        }
+        
     } catch (error) {
-        removeLoadingMessage();
+        removeTypingIndicator();
         addMessage('Mi dispiace, si è verificato un errore. Riprova.', false);
-        console.error('Errore streaming:', error);
+        console.error('Errore:', error);
     } finally {
         sendButton.disabled = false;
         userInput.focus();
