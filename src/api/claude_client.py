@@ -20,7 +20,9 @@ class ClaudeClient:
         """Formatta prodotti per Claude - SOLO campi essenziali"""
         products_for_context = []
         ESSENTIAL = ['Area di taglio fino a', 'Alimentazione', 'Capacità batteria', 
-                     'Pendenza massima', 'Larghezza di taglio', 'Tempo massimo di taglio per ciclo']
+                     'Pendenza massima', 'Larghezza di taglio', 'Tempo massimo di taglio per ciclo',
+                     'Tempo di ricarica', 'GPS-RTK', 'Taglio organizzato',
+                     'Gestione delle zone di taglio', 'Peso prodotto senza batteria']
         
         for item in products_with_scores:
             if len(item) == 2:
