@@ -277,7 +277,7 @@ DOPO aver mostrato i prodotti richiesti, proponi l'alternativa con una domanda:
 
 Esempi:
 - Cliente chiede tagliaerba con budget alto → Dopo i tagliaerba: "A proposito, con il tuo budget potresti anche considerare un robot tagliaerba che lavora in autonomia. Ti incuriosisce l'idea?"
-- Cliente chiede robot per giardino enorme → Dopo i robot: "Per un giardino così grande potresti anche valutare un trattorino. Preferisci restare sul robot?"
+- Cliente chiede robot per giardino SUPERIORE A 3000mq → Dopo i robot: "Per un giardino così esteso potresti valutare anche un trattorino. Preferisci restare sul robot?"
 
 QUESTA È L'UNICA DOMANDA PERMESSA DOPO I PRODOTTI - solo se c'è un'alternativa davvero valida!
 

@@ -1,142 +1,98 @@
-# Stiga Product Assistant 🌱
+# STIGA Product Assistant 🌱
 
-Assistente conversazionale AI per la ricerca e comparazione di prodotti STIGA per giardinaggio.
+Assistente conversazionale AI per la ricerca, comparazione e acquisto di prodotti STIGA per giardinaggio. Progetto live di [IntentifAI](https://www.intentifai.com) — proof-of-concept della piattaforma B2B2C di assistenti AI conversazionali per e-commerce.
 
-## 🎯 Caratteristiche
+**Live demo:** `https://stiga-product-assistant-production.up.railway.app`
+_(credenziali: `stiga` / `StigaDemo2025!`)_
 
-- **Chat conversazionale** con AI (Claude) per trovare il prodotto perfetto
-- **Sistema RAG** per recupero intelligente dei prodotti
-- **Suggerimenti personalizzati** basati sulle esigenze dell'utente
-- **Link diretti** alle pagine prodotto su stiga.com
-- **Immagini prodotto** integrate nella chat
-- **Interfaccia moderna** e responsive
+---
 
-## 📋 Prerequisiti
+## Funzionalita
 
-- Python 3.9+
-- API Key Anthropic Claude
-- macOS (o Linux/Windows con adattamenti)
+- Chat conversazionale con Claude (Anthropic) — consulente esperto STIGA dal 1934
+- RAG ibrido — Sentence Transformers + re-ranking semantico su 500+ prodotti
+- Streaming SSE — risposta progressiva token per token
+- Comparatore prodotti — tabelle comparative generate dinamicamente da Claude
+- Pannello prodotti in tempo reale — card con immagini, prezzi, link diretti a stiga.com
+- Multi-lingua — risponde in italiano, inglese, tedesco, francese, spagnolo
+- Prompt caching — ~85%+ cache hit rate, costo per query ridotto ~10x
+- Analytics dashboard — tracciamento sessioni, query, CTR, confronti statistici (chi-quadro)
+- Widget embed — versione iframe per integrazione su qualsiasi sito (stessa UX di index)
 
-## 🚀 Installazione
+---
 
-### 1. Clona il repository
+## Stack
+
+- Backend: Flask + Gunicorn, Python 3.11
+- AI: claude-sonnet-4-20250514 (Anthropic) con prompt caching
+- RAG: paraphrase-multilingual-mpnet-base-v2 (Sentence Transformers)
+- DB: PostgreSQL (Railway) — analytics e tracking
+- Deploy: Railway (auto-deploy da GitHub main)
+- Frontend: Vanilla JS + SSE + CSS custom
+
+URL produzione: https://stiga-product-assistant-production.up.railway.app
+
+---
+
+## Setup Locale
 
 ```bash
-git clone <your-repo>
+git clone https://github.com/giusMaffi/stiga-product-assistant.git
 cd stiga-product-assistant
-```
-
-### 2. Crea ambiente virtuale
-
-```bash
 python3 -m venv venv
-source venv/bin/activate  # Su macOS/Linux
-```
-
-### 3. Installa dipendenze
-
-```bash
+source venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 4. Configura variabili d'ambiente
-
-```bash
 cp .env.example .env
-# Modifica .env e inserisci la tua ANTHROPIC_API_KEY
-```
-
-### 5. Genera gli embeddings
-
-```bash
+# Inserisci ANTHROPIC_API_KEY in .env
 python scripts/generate_embeddings.py
-```
-
-### 6. Avvia l'applicazione
-
-```bash
 python app/main.py
+# → http://localhost:8000
 ```
 
-Apri il browser su `http://localhost:5000`
+---
 
-## 🏗️ Architettura
-
-### Sistema RAG
-1. **Embeddings**: Ogni prodotto viene convertito in un vettore semantico
-2. **Retrieval**: Data una query utente, troviamo i prodotti più rilevanti
-3. **Response**: Claude genera una risposta conversazionale con suggerimenti
-
-### Flusso Conversazionale
-```
-Utente → Query → RAG Retrieval → Top-K Prodotti → Claude API → Risposta + Link/Immagini
-```
-
-## 📁 Struttura Progetto
+## Struttura
 
 ```
 stiga-product-assistant/
-├── data/                  # Dataset e embeddings
-├── src/                   # Codice sorgente
-│   ├── rag/              # Sistema RAG
-│   └── api/              # Client Claude API
-├── app/                   # Applicazione web Flask
-│   ├── static/           # CSS, JS, immagini
-│   └── templates/        # Template HTML
-├── scripts/              # Script utility
-└── tests/                # Test
+├── app/
+│   ├── templates/
+│   │   ├── index.html          # App principale (layout 40/60 chat + prodotti)
+│   │   ├── widget.html         # Embed iframe (stessa UX, usa style.css)
+│   │   ├── analytics.html      # Dashboard analytics
+│   │   └── analytics_*.html    # Drill-down analytics
+│   ├── static/
+│   │   ├── css/style.css       # Stile unico (index + widget)
+│   │   └── js/chat.js          # Chat + SSE + comparatore
+│   ├── main.py                 # Flask app + query enrichment
+│   ├── analytics_routes.py     # Blueprint analytics
+│   └── analytics_tracker.py   # PostgreSQL event tracking
+├── src/
+│   ├── api/claude_client.py    # Claude API (streaming + caching)
+│   ├── rag/                    # Retriever + matcher + embeddings
+│   └── config.py               # System prompt + config
+├── data/
+│   ├── stiga_products.json     # Catalogo 500+ prodotti
+│   └── embeddings/             # Pre-computed embeddings (.pkl)
+├── scripts/generate_embeddings.py
+├── utils/statistics.py         # Chi-square analytics
+├── Procfile
+└── railway.json
 ```
 
-## 🔧 Configurazione
+---
 
-Modifica `src/config.py` per personalizzare:
-- Modello Claude da utilizzare
-- Numero di prodotti da recuperare (top-k)
-- Temperatura del modello
-- Prompt di sistema
+## Configurazione
 
-## 🧪 Test
+Variabili d'ambiente Railway:
+- ANTHROPIC_API_KEY (obbligatoria)
+- DATABASE_URL (auto-inject da Railway Postgres)
+- MODEL_NAME (opzionale, default: claude-sonnet-4-20250514)
 
-```bash
-# Test del sistema RAG
-python scripts/test_rag.py
+---
 
-# Test unitari
-pytest tests/
-```
+## IntentifAI
 
-## 🎨 Personalizzazione
-
-### Stile
-Modifica `app/static/css/style.css` per personalizzare l'aspetto della chat.
-
-### Prompt
-Modifica i prompt di sistema in `src/config.py` per cambiare il comportamento dell'assistente.
-
-### Prodotti
-Aggiungi/modifica prodotti in `data/stiga_products.json` e rigenera gli embeddings.
-
-## 📝 Esempi di Query
-
-- "Cerco un robot tagliaerba per un giardino di 500 m²"
-- "Ho bisogno di un trattorino a batteria silenzioso"
-- "Quale decespugliatore mi consigli per uso professionale?"
-- "Differenza tra robot con e senza filo perimetrale?"
-
-## 🤝 Contribuire
-
-1. Fork del progetto
-2. Crea un branch per la feature (`git checkout -b feature/AmazingFeature`)
-3. Commit delle modifiche (`git commit -m 'Add some AmazingFeature'`)
-4. Push al branch (`git push origin feature/AmazingFeature`)
-5. Apri una Pull Request
-
-## 📄 Licenza
-
-Questo progetto è distribuito sotto licenza MIT.
-
-## 🙏 Riconoscimenti
-
-- [Anthropic Claude](https://www.anthropic.com) per l'AI conversazionale
-- [STIGA](https://www.stiga.com) per i dati prodotti
-- [Sentence Transformers](https://www.sbert.net/) per gli embeddings
+Questo progetto e' il proof-of-concept della piattaforma IntentifAI.
+Replica disponibile per altri settori (beauty, coffee, machinery).
+Contatti: https://www.intentifai.com
