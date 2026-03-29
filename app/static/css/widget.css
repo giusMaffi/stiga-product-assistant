@@ -14,27 +14,24 @@
     --shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-html, body {
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
+body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     background-image: url('/static/images/stiga-robot.webp');
     background-size: cover;
     background-position: center;
-    padding: 0;
-    margin: 0;
+    background-attachment: fixed;
+    min-height: 100vh;
+    padding: 20px;
 }
 
 .container {
-    width: 100%;
-    height: 100%;
-    max-width: 100%;
-    margin: 0;
+    max-width: 900px;
+    margin: 0 auto;
     background: white;
-    border-radius: 0;
-    box-shadow: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
     overflow: hidden;
+    height: 90vh;
     display: flex;
     flex-direction: column;
 }
@@ -60,7 +57,7 @@ header {
 }
 
 .logo .stiga-logo {
-    max-height: 50px;
+    max-height: 50px;  /* Era troppo grande, ridotto */
 }
 
 .header-subtitle {
@@ -485,4 +482,59 @@ header {
         padding: 8px 10px;
         font-size: 14px;
     }
+}
+
+/* ===== LANGUAGE SELECTOR ===== */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.language-dropdown {
+    padding: 8px 12px;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.language-dropdown:hover {
+    border-color: #00A651;
+}
+
+.language-dropdown:focus {
+    border-color: #00A651;
+    box-shadow: 0 0 0 2px rgba(0, 166, 81, 0.2);
+}
+/* ===== WIDGET IFRAME OVERRIDES ===== */
+html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+body {
+    padding: 0;
+    margin: 0;
+    background-attachment: scroll;
+    min-height: 100%;
+}
+
+.container {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
 }
