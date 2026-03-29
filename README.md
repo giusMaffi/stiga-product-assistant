@@ -97,3 +97,4 @@ Questo progetto e' il proof-of-concept della piattaforma IntentifAI.
 Replica disponibile per altri settori (beauty, coffee, machinery).
 Contatti: https://www.intentifai.com
 
+ 
