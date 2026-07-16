@@ -94,9 +94,7 @@ RICORDA: Usa gli ID COMPLETI esatti dal JSON sopra nel tag <prodotti>."""
         # PROMPT CACHING: System prompt viene cachato
         response = self.client.messages.create(
             model=self.model,
-            max_tokens=MAX_TOKENS,
-            temperature=MODEL_TEMPERATURE,
-            system=[
+            max_tokens=MAX_TOKENS,            system=[
                 {
                     "type": "text",
                     "text": SYSTEM_PROMPT,
@@ -154,7 +152,6 @@ RICORDA: Usa gli ID COMPLETI esatti dal JSON sopra nel tag <prodotti>."""
         with self.client.messages.stream(
             model=self.model,
             max_tokens=MAX_TOKENS,
-            temperature=MODEL_TEMPERATURE,
             system=[
                 {
                     "type": "text",
