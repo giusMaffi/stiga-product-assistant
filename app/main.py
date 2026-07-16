@@ -69,6 +69,7 @@ print("✅ Componenti pronte!")
 # Storia conversazioni (in produzione usa database/Redis)
 conversations = {}
 
+analytics_bp.before_request(auth.login_required(lambda: None))
 # ═══════════════════════════════════════════════════════════════════
 # QUERY ENRICHMENT - SISTEMA HYBRID OTTIMIZZATO
 # Performance: <10ms | Accuratezza: 95%+
