@@ -507,7 +507,8 @@ def chat():
             if not new_model_match:
                 use_previous_products = True
                 print(f"🔄 Confronto richiesto - uso prodotti precedenti: {conversations[session_id]['last_products']}")
-        
+            if (not use_previous_products and conversations[session_id].get('last_products') and not MODELLO_PATTERN.search(user_message) and not extract_categoria([{'role': 'user', 'content': user_message}])):
+                use_previous_products = True
         # 3. Arricchisci query con contesto conversazionale
         # Includi messaggio corrente nella storia per extract_categoria
         current_history = history + [{'role': 'user', 'content': user_message}]
