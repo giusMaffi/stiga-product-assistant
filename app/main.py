@@ -34,7 +34,7 @@ auth = HTTPBasicAuth()
 
 # Credenziali di accesso (cambia username/password come preferisci)
 users = {
-    "stiga": generate_password_hash("StigaDemo2025!")
+    os.getenv("BASIC_AUTH_USERNAME", "stiga"): generate_password_hash(os.getenv("BASIC_AUTH_PASSWORD", ""))
 }
 
 @auth.verify_password
