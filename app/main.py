@@ -28,7 +28,6 @@ from app.analytics_routes import analytics_bp
 
 app = Flask(__name__)
 CORS(app)
-app.register_blueprint(analytics_bp)
 
 # Setup HTTP Basic Authentication
 auth = HTTPBasicAuth()
@@ -70,6 +69,7 @@ print("✅ Componenti pronte!")
 conversations = {}
 
 analytics_bp.before_request(auth.login_required(lambda: None))
+app.register_blueprint(analytics_bp)
 # ═══════════════════════════════════════════════════════════════════
 # QUERY ENRICHMENT - SISTEMA HYBRID OTTIMIZZATO
 # Performance: <10ms | Accuratezza: 95%+
