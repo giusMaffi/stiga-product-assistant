@@ -183,7 +183,6 @@ RICORDA: Usa gli ID COMPLETI esatti dal JSON sopra nel tag <prodotti>."""
         response = self.client.messages.create(
             model=self.model,
             max_tokens=MAX_TOKENS,
-            temperature=MODEL_TEMPERATURE,
             system=[
                 {
                     "type": "text",
@@ -249,7 +248,6 @@ RICORDA: Usa gli ID COMPLETI esatti dal JSON sopra nel tag <prodotti>."""
         with self.client.messages.stream(
             model=self.model,
             max_tokens=MAX_TOKENS,
-            temperature=MODEL_TEMPERATURE,
             system=[
                 {
                     "type": "text",
