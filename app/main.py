@@ -364,10 +364,60 @@ def build_enriched_query(user_message: str, conversation_history: List[Dict]) ->
 # PARSING RISPOSTA CLAUDE
 # ═══════════════════════════════════════════════════════════════════
 
+def _parse_comparator_block(response_text: str):
+    """
+    Estrae e valida il blocco <comparatore>. Ritorna il dict del comparatore
+    oppure None. F-06: non fallisce mai in silenzio, ogni problema e' loggato.
+    """
+    if not re.search(r'<comparatore>', response_text, re.IGNORECASE):
+        return None  # nessun comparatore richiesto: caso normale
+
+    match = re.search(r'<comparatore>(.*?)</comparatore>', response_text, re.DOTALL | re.IGNORECASE)
+    if not match:
+        # Tag aperto ma non chiuso -> quasi sempre troncamento (MAX_TOKENS, F-05)
+        print("\U0001F534 F-06: <comparatore> aperto ma non chiuso "
+              "(probabile troncamento MAX_TOKENS / F-05). Comparatore non mostrato.")
+        return None
+
+    raw = match.group(1).strip()
+    # rimuovi eventuali fence markdown ```json ... ```
+    raw = re.sub(r'^```(?:json)?\s*', '', raw)
+    raw = re.sub(r'\s*```$', '', raw).strip()
+
+    data = None
+    for cand in (raw, re.sub(r',\s*([}\]])', r'\1', raw)):  # 2o tentativo: togli trailing commas
+        try:
+            data = json.loads(cand)
+            break
+        except json.JSONDecodeError:
+            continue
+
+    if data is None:
+        print(f"\U0001F534 F-06: comparatore JSON non parsabile, NON mostrato. Contenuto: {raw[:200]}")
+        return None
+
+    # Validazione forma attesa dal frontend (formatComparisonTable):
+    # richiede 'prodotti' (lista) e 'attributi' (lista). Senza, il frontend
+    # renderizzerebbe un contenitore vuoto -> meglio scartare in modo pulito.
+    if not isinstance(data, dict) or not data.get('prodotti') or not isinstance(data.get('attributi'), list):
+        chiavi = list(data.keys()) if isinstance(data, dict) else type(data).__name__
+        print(f"\U0001F534 F-06: comparatore forma inattesa (manca prodotti/attributi), scartato. Chiavi: {chiavi}")
+        return None
+
+    return data
+
+
 def parse_claude_response(response_text: str) -> tuple:
     """
-    Parsea risposta Claude nel formato XML
-    
+    Parsea risposta Claude nel formato XML in modo robusto.
+
+    Obiettivi F-06 (niente rotture silenziose sul comparatore):
+    - Il testo mostrato all'utente non deve MAI contenere tag strutturali
+      (<risposta>/<prodotti>/<comparatore>), nemmeno se manca il wrapper
+      <risposta> o se la risposta viene troncata a meta' tag.
+    - Il comparatore non deve sparire in silenzio: JSON malformato o troncato
+      viene loggato in modo evidente e, se recuperabile, riparato.
+
     Returns:
         (testo_risposta, lista_id_prodotti, comparator_data)
     """
@@ -377,40 +427,49 @@ def parse_claude_response(response_text: str) -> tuple:
         print("RAW CLAUDE RESPONSE:")
         print(response_text)
         print("="*80 + "\n")
-        
-        # Estrai testo risposta
+
+        # 1) TESTO RISPOSTA
         risposta_match = re.search(r'<risposta>(.*?)</risposta>', response_text, re.DOTALL)
-        text = risposta_match.group(1).strip() if risposta_match else response_text
-        
-        # Rimuovi IDs prodotti dal testo se Claude li ha messi per errore
+        if risposta_match:
+            text = risposta_match.group(1).strip()
+        else:
+            # Wrapper mancante: usa tutto il testo ma rimuovi i blocchi strutturali
+            # (anche se troncati / non chiusi) per non far trapelare tag "fantasma".
+            text = response_text
+            text = re.sub(r'<prodotti>.*?</prodotti>', '', text, flags=re.DOTALL | re.IGNORECASE)
+            text = re.sub(r'<comparatore>.*?</comparatore>', '', text, flags=re.DOTALL | re.IGNORECASE)
+            # blocchi aperti e non chiusi (troncamento): butta via dal tag in poi
+            text = re.sub(r'<prodotti>.*$', '', text, flags=re.DOTALL | re.IGNORECASE)
+            text = re.sub(r'<comparatore>.*$', '', text, flags=re.DOTALL | re.IGNORECASE)
+            text = re.sub(r'</?risposta>', '', text, flags=re.IGNORECASE).strip()
+            print("\u26A0\uFE0F F-06: wrapper <risposta> assente, testo ripulito dai tag strutturali")
+
+        # Belt-and-suspenders: nessun tag noto deve restare nel testo mostrato
+        text = re.sub(r'</?(?:risposta|prodotti|comparatore)>', '', text, flags=re.IGNORECASE).strip()
+
+        # Rimuovi IDs prodotti dal testo se Claude li ha messi per errore in coda
         text = re.sub(r'[a-z0-9]+-[a-z0-9]+-[a-z0-9-]+(?:,[a-z0-9]+-[a-z0-9]+-[a-z0-9-]+)*$', '', text, flags=re.IGNORECASE).strip()
-        
-        # Estrai IDs prodotti
+
+        # 2) IDS PRODOTTI
         prodotti_match = re.search(r'<prodotti>(.*?)</prodotti>', response_text, re.DOTALL)
         if prodotti_match:
             ids_string = prodotti_match.group(1).strip()
-            if ids_string:
-                product_ids = [id.strip() for id in ids_string.split(',')]
-            else:
-                product_ids = []
+            product_ids = [i.strip() for i in ids_string.split(',') if i.strip()] if ids_string else []
         else:
             product_ids = []
-        
-        # Estrai dati comparatore (se presenti)
-        comparator_data = None
-        comparator_match = re.search(r'<comparatore>(.*?)</comparatore>', response_text, re.DOTALL)
-        if comparator_match:
-            try:
-                comparator_json = comparator_match.group(1).strip()
-                comparator_data = json.loads(comparator_json)
-            except json.JSONDecodeError:
-                print("⚠️ Errore parsing comparatore JSON")
-        
+
+        # 3) COMPARATORE (robusto: no rottura silenziosa)
+        comparator_data = _parse_comparator_block(response_text)
+
         return text, product_ids, comparator_data
-        
+
     except Exception as e:
-        print(f"⚠️ Errore parsing risposta Claude: {e}")
-        return response_text, [], None
+        print(f"\u26A0\uFE0F Errore parsing risposta Claude: {e}")
+        import traceback
+        traceback.print_exc()
+        # Ultima spiaggia: non mostrare mai i tag grezzi all'utente
+        safe = re.sub(r'</?(?:risposta|prodotti|comparatore)>', '', response_text, flags=re.IGNORECASE).strip()
+        return safe, [], None
 
 
 def clean_product_description(product: Dict) -> str:
