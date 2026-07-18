@@ -593,7 +593,7 @@ function cmpBuildSections(specSets, categoria) {
   });
   const freq = {};
   specSets.forEach(s => Object.keys(s).forEach(k => { freq[k] = (freq[k] || 0) + 1; }));
-  const leftover = Object.keys(freq).filter(k => !used.has(k)).sort((a, b) => freq[b] - freq[a]).slice(0, 12);
+  const leftover = Object.keys(freq).filter(k => !used.has(k)).sort((a, b) => freq[b] - freq[a]).slice(0, 40);
   if (leftover.length) sections.push([cfg.length ? 'Altre specifiche' : 'Specifiche', leftover]);
   return sections;
 }
