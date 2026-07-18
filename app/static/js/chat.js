@@ -506,19 +506,30 @@ document.getElementById('language-selector').addEventListener('change', (e) => {
     updateWelcomeMessage(newLang);
 });
 
-// ===== COMPARATORE DETERMINISTICO (F-06b, senza AI) =====
-// Legge le specifiche reali da /api/product/<id> e le mostra affiancate
-// nel pannello #comparison-panel. Nessuna chiamata LLM: istantaneo e stabile.
+// ===== COMPARATORE DETERMINISTICO v2 (F-06b UI, senza AI) =====
+// Full-width sotto chat+prodotti. Header prodotti sticky, spec in sezioni,
+// "solo differenze" ON di default. Dati da /api/product/<id>. Nessun LLM.
 const CMP_BLACKLIST = ['ean', 'upc', 'sku', 'gtin', 'codice', 'barcode'];
 const CMP_HIGHER_BETTER = ['area di taglio', 'capacità batteria', 'capacita batteria', 'potenza', 'autonomia', 'tempo massimo di taglio', 'capacità sacco', 'capacita sacco', 'cilindrata'];
 const CMP_LOWER_BETTER = ['peso', 'tempo di ricarica', 'livello', 'rumore', 'emission'];
-const CMP_PREFERRED = {
-  'Robot tagliaerba': ['Alimentazione', 'Area di taglio fino a', 'Capacità batteria', 'Tempo di ricarica', 'Tempo massimo di taglio per ciclo', 'Larghezza di taglio', 'Pendenza massima', 'GPS'],
-  'Trattorini da giardino': ['Alimentazione', 'Area di taglio', 'Larghezza di taglio', 'Altezze di taglio', 'Capacità sacco raccolta', 'Potenza', 'Trasmissione', 'Peso'],
-  'Tagliaerba': ['Alimentazione', 'Larghezza di taglio', 'Altezze di taglio', 'Capacità sacco raccolta', 'Area di taglio', 'Avanzamento', 'Potenza', 'Peso'],
-  'Decespugliatori': ['Alimentazione', 'Cilindrata', 'Potenza', 'Diametro lama', 'Larghezza di taglio', 'Peso'],
-  'Motoseghe': ['Alimentazione', 'Cilindrata', 'Potenza', 'Lunghezza barra', 'Capacità serbatoio olio catena', 'Freno catena', 'Peso'],
-  'Tagliasiepi': ['Alimentazione', 'Capacità di taglio', 'Distanza tra i denti', 'Lunghezza lama', 'Peso']
+const CMP_SECTIONS = {
+  'Robot tagliaerba': [
+    ['Prestazioni', ['Area di taglio fino a', 'Larghezza di taglio', 'Pendenza massima', 'Altezze di taglio', 'Altezza di taglio per zona', 'Gestione zone di taglio']],
+    ['Batteria', ['Capacità batteria', 'Tempo di ricarica', 'Tempo massimo di taglio per ciclo', 'Tipo batteria', 'Voltaggio batteria', 'Caricabatterie']],
+    ['Navigazione e app', ['GPS-RTK', 'APP Lock', 'Base di ricarica', 'ePower']],
+    ['Dimensioni', ['Altezza prodotto', 'Larghezza prodotto', 'Lunghezza prodotto', 'Peso']]
+  ],
+  'Trattorini da giardino': [
+    ['Prestazioni', ['Area di taglio', 'Larghezza di taglio', 'Altezze di taglio', 'Cilindrata', 'Potenza', 'Raggio di sterzata']],
+    ['Alimentazione', ['Alimentazione', 'Capacità batteria', 'Tempo di ricarica', 'Capacità serbatoio carburante']],
+    ['Raccolta e comfort', ['Capacità sacco raccolta', 'Trasmissione', 'Cruise control', 'Contaore']],
+    ['Dimensioni', ['Altezza prodotto', 'Peso']]
+  ],
+  'Tagliaerba': [
+    ['Prestazioni', ['Larghezza di taglio', 'Altezze di taglio', 'Area di taglio', 'Avanzamento', 'Potenza']],
+    ['Raccolta e alimentazione', ['Alimentazione', 'Capacità sacco raccolta', 'Capacità batteria']],
+    ['Dimensioni', ['Peso']]
+  ]
 };
 
 function cmpNormLabel(raw) {
@@ -543,22 +554,6 @@ function cmpNormSpecs(product) {
   }
   return out;
 }
-function cmpBuildRows(specSets, categoria) {
-  const avail = new Set();
-  specSets.forEach(s => Object.keys(s).forEach(k => avail.add(k)));
-  const rows = [], seen = new Set();
-  const pref = CMP_PREFERRED[categoria] || [];
-  const find = (p) => {
-    for (const a of avail) if (a.toLowerCase() === p.toLowerCase()) return a;
-    for (const a of avail) if (a.toLowerCase().startsWith(p.toLowerCase())) return a;
-    return null;
-  };
-  pref.forEach(p => { const a = find(p); if (a && !seen.has(a)) { rows.push(a); seen.add(a); } });
-  const freq = {};
-  specSets.forEach(s => Object.keys(s).forEach(k => { freq[k] = (freq[k] || 0) + 1; }));
-  Object.keys(freq).sort((a, b) => freq[b] - freq[a]).forEach(k => { if (!seen.has(k)) { rows.push(k); seen.add(k); } });
-  return rows.slice(0, 14);
-}
 function cmpParseNum(v) {
   const m = String(v).match(/[-+]?\d+(?:[.,]\d+)?/);
   return m ? parseFloat(m[0].replace(',', '.')) : null;
@@ -574,72 +569,137 @@ function cmpRow(label, specSets) {
   if (dir !== 0 && diff) {
     const nums = vals.map(cmpParseNum);
     if (nums.every(n => n !== null) && new Set(nums).size > 1) {
-      const target = dir === 1 ? Math.max(...nums) : Math.min(...nums);
+      const target = dir === 1 ? Math.max.apply(null, nums) : Math.min.apply(null, nums);
       best = nums.indexOf(target);
     }
   }
   return { vals, diff, best };
+}
+function cmpBuildSections(specSets, categoria) {
+  const avail = new Set();
+  specSets.forEach(s => Object.keys(s).forEach(k => avail.add(k)));
+  const used = new Set();
+  const find = (p) => {
+    for (const a of avail) if (a.toLowerCase() === p.toLowerCase()) return a;
+    for (const a of avail) if (a.toLowerCase().startsWith(p.toLowerCase())) return a;
+    return null;
+  };
+  const cfg = CMP_SECTIONS[categoria] || [];
+  const sections = [];
+  cfg.forEach(pair => {
+    const rows = [];
+    pair[1].forEach(k => { const a = find(k); if (a && !used.has(a)) { rows.push(a); used.add(a); } });
+    if (rows.length) sections.push([pair[0], rows]);
+  });
+  const freq = {};
+  specSets.forEach(s => Object.keys(s).forEach(k => { freq[k] = (freq[k] || 0) + 1; }));
+  const leftover = Object.keys(freq).filter(k => !used.has(k)).sort((a, b) => freq[b] - freq[a]).slice(0, 12);
+  if (leftover.length) sections.push([cfg.length ? 'Altre specifiche' : 'Specifiche', leftover]);
+  return sections;
+}
+function cmpEsc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 async function openDeterministicComparison(selected) {
   const panel = document.getElementById('comparison-panel');
   if (!panel) return;
   panel.classList.remove('hidden');
-  panel.innerHTML = '<p style="padding:12px; color:#666; font-size:13px;">Preparo il confronto…</p>';
-  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  panel.style.cssText = 'display:block;width:100%;margin:16px 0 0;';
+  panel.innerHTML = '<p style="padding:16px;color:#666;font-size:14px;">Preparo il confronto…</p>';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   let full;
   try {
     full = await Promise.all(selected.map(p => fetch('/api/product/' + encodeURIComponent(p.id)).then(r => r.json())));
   } catch (e) {
-    panel.innerHTML = '<p style="padding:12px; color:#b00; font-size:13px;">Errore nel recupero delle schede. Riprova.</p>';
+    panel.innerHTML = '<p style="padding:16px;color:#b00;font-size:14px;">Errore nel recupero delle schede. Riprova.</p>';
     return;
   }
-  const categoria = (full[0] && full[0].categoria) || '';
-  const specSets = full.map(cmpNormSpecs);
-  const rows = cmpBuildRows(specSets, categoria);
-  cmpRenderPanel(panel, full, specSets, rows);
+  cmpRenderPanel(panel, full);
 }
 
-function cmpRenderPanel(panel, products, specSets, rows) {
-  let onlyDiff = false;
+function cmpRenderPanel(panel, products) {
+  let onlyDiff = true;
+  const cols = () => 'minmax(150px,1.3fr) ' + products.map(() => '1fr').join(' ');
   const render = () => {
-    const head = ['<th style="text-align:left;padding:10px 8px;font-size:12px;color:#666;font-weight:500;">Caratteristica</th>']
-      .concat(products.map(p => '<th style="padding:10px 8px;border-bottom:1px solid #e5e5e5;font-size:13px;font-weight:600;color:#111;">' +
-        cmpEsc(p.nome) + '<div style="font-weight:600;color:#00843D;margin-top:2px;">' + cmpEsc(p.prezzo || '—') + '</div></th>')).join('');
-    let bodyRows = '';
-    rows.forEach(label => {
-      const r = cmpRow(label, specSets);
-      if (onlyDiff && !r.diff) return;
-      const labColor = r.diff ? '#111' : '#999';
-      let tds = '<td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#666;">' + cmpEsc(label) +
-        (r.diff ? ' <span style="color:#00843D;">•</span>' : '') + '</td>';
-      r.vals.forEach((v, i) => {
-        const win = r.best === i;
-        tds += '<td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;font-size:13px;color:' + labColor + ';' +
-          (win ? 'background:#eaf6ee;font-weight:600;' : '') + '">' + cmpEsc(v) + (win ? ' ✓' : '') + '</td>';
-      });
-      bodyRows += '<tr>' + tds + '</tr>';
+    const categoria = (products[0] && products[0].categoria) || '';
+    const specSets = products.map(cmpNormSpecs);
+    const sections = cmpBuildSections(specSets, categoria);
+
+    let diffCount = 0;
+    sections.forEach(sec => sec[1].forEach(l => { if (cmpRow(l, specSets).diff) diffCount++; }));
+
+    let html = '';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #eee;">';
+    html += '<span style="font-size:16px;font-weight:600;color:#111;">Confronto prodotti</span>';
+    html += '<span style="display:flex;align-items:center;gap:16px;">';
+    html += '<label style="font-size:13px;color:#555;cursor:pointer;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="cmp-onlydiff"' + (onlyDiff ? ' checked' : '') + '> Solo differenze</label>';
+    html += '<button id="cmp-close" aria-label="Chiudi confronto" style="border:none;background:none;color:#888;cursor:pointer;font-size:22px;line-height:1;">×</button>';
+    html += '</span></div>';
+
+    html += '<div style="position:sticky;top:0;z-index:5;background:#fff;display:grid;grid-template-columns:' + cols() + ';border-bottom:2px solid #e5e5e5;">';
+    html += '<div style="padding:12px 16px;font-size:12px;color:#999;display:flex;align-items:flex-end;">' + products.length + ' prodotti</div>';
+    products.forEach((p, i) => {
+      html += '<div style="padding:12px 12px;border-left:1px solid #f0f0f0;position:relative;">' +
+        '<button data-remove="' + i + '" aria-label="Togli" style="position:absolute;top:6px;right:6px;border:none;background:none;color:#bbb;cursor:pointer;font-size:15px;line-height:1;">×</button>' +
+        '<div style="font-size:15px;font-weight:600;color:#111;padding-right:16px;">' + cmpEsc(p.nome) + '</div>' +
+        '<div style="font-size:14px;font-weight:600;color:#00843D;margin-top:2px;">' + cmpEsc(p.prezzo || '—') + '</div></div>';
     });
-    if (!bodyRows) bodyRows = '<tr><td colspan="' + (products.length + 1) + '" style="padding:12px;color:#999;font-size:13px;">Nessuna differenza tra i prodotti selezionati.</td></tr>';
-    panel.innerHTML =
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 4px;">' +
-      '<span style="font-size:14px;font-weight:600;color:#111;">Confronto (' + products.length + ')</span>' +
-      '<span style="display:flex;align-items:center;gap:12px;">' +
-      '<label style="font-size:12px;color:#666;cursor:pointer;display:flex;align-items:center;gap:5px;"><input type="checkbox" id="cmp-onlydiff"' + (onlyDiff ? ' checked' : '') + '> Solo differenze</label>' +
-      '<button id="cmp-close" style="border:none;background:none;color:#999;cursor:pointer;font-size:18px;line-height:1;">×‍</button>' +
-      '</span></div>' +
-      '<table style="width:100%;border-collapse:collapse;table-layout:fixed;"><thead><tr>' + head + '</tr></thead><tbody>' + bodyRows + '</tbody></table>';
-    const cb = document.getElementById('cmp-onlydiff');
+    html += '</div>';
+
+    sections.forEach(sec => {
+      const rows = sec[1].filter(l => !onlyDiff || cmpRow(l, specSets).diff);
+      if (!rows.length) return;
+      html += '<div style="padding:9px 16px;background:#f7f7f5;font-size:12px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:.03em;">' + cmpEsc(sec[0]) + '</div>';
+      rows.forEach(label => {
+        const r = cmpRow(label, specSets);
+        html += '<div style="display:grid;grid-template-columns:' + cols() + ';border-bottom:1px solid #f2f2f2;">';
+        html += '<div style="padding:11px 16px;font-size:13px;color:#666;">' + cmpEsc(label) + '</div>';
+        r.vals.forEach((v, i) => {
+          const win = r.best === i;
+          html += '<div style="padding:11px 12px;border-left:1px solid #f0f0f0;font-size:14px;' + (win ? 'background:#eaf6ee;color:#0f6e56;font-weight:600;' : 'color:#222;') + '">' + cmpEsc(v) + (win ? ' ✓' : '') + '</div>';
+        });
+        html += '</div>';
+      });
+    });
+
+    if (onlyDiff && diffCount === 0) {
+      html += '<div style="padding:20px 16px;color:#999;font-size:14px;">Nessuna differenza tra i prodotti selezionati. Togli "Solo differenze" per vedere tutte le specifiche.</div>';
+    }
+
+    const names = products.map(p => p.nome).join(', ');
+    html += '<div style="margin:0;padding:14px 16px;background:#f0f7f3;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
+      '<span style="flex:1;min-width:180px;font-size:13px;color:#0f6e56;">Vuoi un consiglio su misura? L\'assistente sceglie per te tra questi.</span>' +
+      '<button id="cmp-ai" style="border:1px solid #00843D;background:#00843D;color:#fff;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;">Chiedi quale conviene</button></div>';
+
+    panel.innerHTML = html;
+
+    const cb = panel.querySelector('#cmp-onlydiff');
     if (cb) cb.addEventListener('change', e => { onlyDiff = e.target.checked; render(); });
-    const cl = document.getElementById('cmp-close');
+    const cl = panel.querySelector('#cmp-close');
     if (cl) cl.addEventListener('click', () => { panel.classList.add('hidden'); panel.innerHTML = ''; });
+    panel.querySelectorAll('[data-remove]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.getAttribute('data-remove'), 10);
+        products.splice(idx, 1);
+        if (products.length < 2) { panel.classList.add('hidden'); panel.innerHTML = ''; return; }
+        render();
+      });
+    });
+    const ai = panel.querySelector('#cmp-ai');
+    if (ai) ai.addEventListener('click', () => {
+      const input = document.getElementById('user-input');
+      const form = document.getElementById('chat-form');
+      if (input && form) {
+        input.value = 'Quale mi consigli tra ' + names + '? Dammi una raccomandazione secca con il motivo.';
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+        const chat = document.getElementById('chat-messages');
+        if (chat) chat.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
   };
   render();
 }
-function cmpEsc(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
 
 // ===== COMPARE BUTTON CLICK HANDLER (F-06b: comparatore deterministico) =====
 document.getElementById('compare-toggle')?.addEventListener('click', () => {
