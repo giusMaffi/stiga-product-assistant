@@ -605,7 +605,7 @@ async function openDeterministicComparison(selected) {
   const panel = document.getElementById('comparison-panel');
   if (!panel) return;
   panel.classList.remove('hidden');
-  panel.style.cssText = 'display:block;width:100%;margin:16px 0 0;';
+  panel.style.cssText = 'display:block;width:100%;margin:0;background:#fff;';
   panel.innerHTML = '<p style="padding:16px;color:#666;font-size:14px;">Preparo il confronto…</p>';
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   let full;
@@ -630,17 +630,17 @@ function cmpRenderPanel(panel, products) {
     sections.forEach(sec => sec[1].forEach(l => { if (cmpRow(l, specSets).diff) diffCount++; }));
 
     let html = '';
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #eee;">';
+    html += '<div style="position:sticky;top:0;z-index:31;background:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #eee;">';
     html += '<span style="font-size:16px;font-weight:600;color:#111;">Confronto prodotti</span>';
     html += '<span style="display:flex;align-items:center;gap:16px;">';
     html += '<label style="font-size:13px;color:#555;cursor:pointer;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="cmp-onlydiff"' + (onlyDiff ? ' checked' : '') + '> Solo differenze</label>';
     html += '<button id="cmp-close" aria-label="Chiudi confronto" style="border:none;background:none;color:#888;cursor:pointer;font-size:22px;line-height:1;">×</button>';
     html += '</span></div>';
 
-    html += '<div style="position:sticky;top:0;z-index:5;background:#fff;display:grid;grid-template-columns:' + cols() + ';border-bottom:2px solid #e5e5e5;">';
-    html += '<div style="padding:12px 16px;font-size:12px;color:#999;display:flex;align-items:flex-end;">' + products.length + ' prodotti</div>';
+    html += '<div style="position:sticky;top:49px;z-index:30;background:#fff;display:grid;grid-template-columns:' + cols() + ';border-bottom:2px solid #e5e5e5;box-shadow:0 4px 8px rgba(0,0,0,0.08);">';
+    html += '<div style="padding:12px 16px;font-size:12px;color:#999;display:flex;align-items:flex-end;background:#fff;">' + products.length + ' prodotti</div>';
     products.forEach((p, i) => {
-      html += '<div style="padding:12px 12px;border-left:1px solid #f0f0f0;position:relative;">' +
+      html += '<div style="padding:12px 12px;border-left:1px solid #f0f0f0;position:relative;background:#fff;">' +
         '<button data-remove="' + i + '" aria-label="Togli" style="position:absolute;top:6px;right:6px;border:none;background:none;color:#bbb;cursor:pointer;font-size:15px;line-height:1;">×</button>' +
         '<div style="font-size:15px;font-weight:600;color:#111;padding-right:16px;">' + cmpEsc(p.nome) + '</div>' +
         '<div style="font-size:14px;font-weight:600;color:#00843D;margin-top:2px;">' + cmpEsc(p.prezzo || '—') + '</div></div>';
