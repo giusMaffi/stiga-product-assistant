@@ -241,6 +241,12 @@ def search_products_by_name(query: str, retriever) -> List:
         clean = clean.strip()
         if clean and len(clean) > 2:  # Almeno 3 caratteri
             model_names.append(clean)
+    # Preferisci i token modello estratti dal pattern MODELLO
+    # (robusto a frasi come 'mi interessa il modello A 500', non solo 'A 500' isolato)
+    _pattern_models = [m.group(0).strip().lower() for m in MODELLO_PATTERN.finditer(query)]
+    _pattern_models = [p for p in _pattern_models if len(p) > 2]
+    if _pattern_models:
+        model_names = _pattern_models
     
     if not model_names:
         return []
