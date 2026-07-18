@@ -532,9 +532,10 @@ def chat():
                 if product:
                     reranked.append((product, 1.0, ['confronto_richiesto']))
             print(f"📦 Uso {len(reranked)} prodotti precedenti per confronto")
-        elif is_confronto and MODELLO_PATTERN.search(user_message):
-            # Confronto con modelli specifici → ricerca diretta per nome
-            print("🎯 Confronto con modelli specifici - uso ricerca diretta")
+        elif MODELLO_PATTERN.search(user_message):
+            # Modello specifico nominato (confronto o singolo) -> ricerca diretta per nome
+            # (evita la confusione semantica tra codici simili, es. A 1000 vs A 100v)
+            print("\U0001F3AF Modello specifico rilevato - ricerca diretta per nome")
             reranked = search_products_by_name(user_message, retriever)
             if not reranked:
                 print("⚠️ Ricerca diretta fallita, uso retrieval semantico")
