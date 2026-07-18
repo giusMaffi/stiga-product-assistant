@@ -204,7 +204,7 @@ RICORDA: Usa gli ID COMPLETI esatti dal JSON sopra nel tag <prodotti>."""
         # Salva in CSV per analisi costi
         self._log_token_usage('chat', input_tokens, cached_tokens, output_tokens)
         
-        return response.content[0].text
+        return "".join(b.text for b in response.content if b.type == "text")
     
     def stream_chat(
         self,
