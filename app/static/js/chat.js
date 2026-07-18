@@ -506,54 +506,145 @@ document.getElementById('language-selector').addEventListener('change', (e) => {
     updateWelcomeMessage(newLang);
 });
 
-// ===== COMPARE BUTTON CLICK HANDLER =====
+// ===== COMPARATORE DETERMINISTICO (F-06b, senza AI) =====
+// Legge le specifiche reali da /api/product/<id> e le mostra affiancate
+// nel pannello #comparison-panel. Nessuna chiamata LLM: istantaneo e stabile.
+const CMP_BLACKLIST = ['ean', 'upc', 'sku', 'gtin', 'codice', 'barcode'];
+const CMP_HIGHER_BETTER = ['area di taglio', 'capacità batteria', 'capacita batteria', 'potenza', 'autonomia', 'tempo massimo di taglio', 'capacità sacco', 'capacita sacco', 'cilindrata'];
+const CMP_LOWER_BETTER = ['peso', 'tempo di ricarica', 'livello', 'rumore', 'emission'];
+const CMP_PREFERRED = {
+  'Robot tagliaerba': ['Alimentazione', 'Area di taglio fino a', 'Capacità batteria', 'Tempo di ricarica', 'Tempo massimo di taglio per ciclo', 'Larghezza di taglio', 'Pendenza massima', 'GPS'],
+  'Trattorini da giardino': ['Alimentazione', 'Area di taglio', 'Larghezza di taglio', 'Altezze di taglio', 'Capacità sacco raccolta', 'Potenza', 'Trasmissione', 'Peso'],
+  'Tagliaerba': ['Alimentazione', 'Larghezza di taglio', 'Altezze di taglio', 'Capacità sacco raccolta', 'Area di taglio', 'Avanzamento', 'Potenza', 'Peso'],
+  'Decespugliatori': ['Alimentazione', 'Cilindrata', 'Potenza', 'Diametro lama', 'Larghezza di taglio', 'Peso'],
+  'Motoseghe': ['Alimentazione', 'Cilindrata', 'Potenza', 'Lunghezza barra', 'Capacità serbatoio olio catena', 'Freno catena', 'Peso'],
+  'Tagliasiepi': ['Alimentazione', 'Capacità di taglio', 'Distanza tra i denti', 'Lunghezza lama', 'Peso']
+};
+
+function cmpNormLabel(raw) {
+  return String(raw).replace(/^Specifiche tecniche\s*-\s*/i, '').replace(/info_outline/ig, '').replace(/\s+/g, ' ').trim();
+}
+function cmpNonEmpty(v) {
+  const s = (v === null || v === undefined) ? '' : String(v).trim();
+  return s !== '' && s !== '-' && s !== '—' && s.toLowerCase() !== 'n/a';
+}
+function cmpBlacklisted(label) {
+  const l = label.toLowerCase();
+  return CMP_BLACKLIST.some(b => l.includes(b));
+}
+function cmpNormSpecs(product) {
+  const specs = product.specifiche_tecniche || {};
+  const out = {};
+  for (const k in specs) {
+    if (!cmpNonEmpty(specs[k])) continue;
+    const lab = cmpNormLabel(k);
+    if (!lab || cmpBlacklisted(lab)) continue;
+    if (!(lab in out)) out[lab] = String(specs[k]).trim();
+  }
+  return out;
+}
+function cmpBuildRows(specSets, categoria) {
+  const avail = new Set();
+  specSets.forEach(s => Object.keys(s).forEach(k => avail.add(k)));
+  const rows = [], seen = new Set();
+  const pref = CMP_PREFERRED[categoria] || [];
+  const find = (p) => {
+    for (const a of avail) if (a.toLowerCase() === p.toLowerCase()) return a;
+    for (const a of avail) if (a.toLowerCase().startsWith(p.toLowerCase())) return a;
+    return null;
+  };
+  pref.forEach(p => { const a = find(p); if (a && !seen.has(a)) { rows.push(a); seen.add(a); } });
+  const freq = {};
+  specSets.forEach(s => Object.keys(s).forEach(k => { freq[k] = (freq[k] || 0) + 1; }));
+  Object.keys(freq).sort((a, b) => freq[b] - freq[a]).forEach(k => { if (!seen.has(k)) { rows.push(k); seen.add(k); } });
+  return rows.slice(0, 14);
+}
+function cmpParseNum(v) {
+  const m = String(v).match(/[-+]?\d+(?:[.,]\d+)?/);
+  return m ? parseFloat(m[0].replace(',', '.')) : null;
+}
+function cmpRow(label, specSets) {
+  const vals = specSets.map(s => (label in s) ? s[label] : '—');
+  const diff = new Set(vals).size > 1;
+  const l = label.toLowerCase();
+  let dir = 0;
+  if (CMP_HIGHER_BETTER.some(k => l.includes(k))) dir = 1;
+  else if (CMP_LOWER_BETTER.some(k => l.includes(k))) dir = -1;
+  let best = null;
+  if (dir !== 0 && diff) {
+    const nums = vals.map(cmpParseNum);
+    if (nums.every(n => n !== null) && new Set(nums).size > 1) {
+      const target = dir === 1 ? Math.max(...nums) : Math.min(...nums);
+      best = nums.indexOf(target);
+    }
+  }
+  return { vals, diff, best };
+}
+
+async function openDeterministicComparison(selected) {
+  const panel = document.getElementById('comparison-panel');
+  if (!panel) return;
+  panel.classList.remove('hidden');
+  panel.innerHTML = '<p style="padding:12px; color:#666; font-size:13px;">Preparo il confronto…</p>';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  let full;
+  try {
+    full = await Promise.all(selected.map(p => fetch('/api/product/' + encodeURIComponent(p.id)).then(r => r.json())));
+  } catch (e) {
+    panel.innerHTML = '<p style="padding:12px; color:#b00; font-size:13px;">Errore nel recupero delle schede. Riprova.</p>';
+    return;
+  }
+  const categoria = (full[0] && full[0].categoria) || '';
+  const specSets = full.map(cmpNormSpecs);
+  const rows = cmpBuildRows(specSets, categoria);
+  cmpRenderPanel(panel, full, specSets, rows);
+}
+
+function cmpRenderPanel(panel, products, specSets, rows) {
+  let onlyDiff = false;
+  const render = () => {
+    const head = ['<th style="text-align:left;padding:10px 8px;font-size:12px;color:#666;font-weight:500;">Caratteristica</th>']
+      .concat(products.map(p => '<th style="padding:10px 8px;border-bottom:1px solid #e5e5e5;font-size:13px;font-weight:600;color:#111;">' +
+        cmpEsc(p.nome) + '<div style="font-weight:600;color:#00843D;margin-top:2px;">' + cmpEsc(p.prezzo || '—') + '</div></th>')).join('');
+    let bodyRows = '';
+    rows.forEach(label => {
+      const r = cmpRow(label, specSets);
+      if (onlyDiff && !r.diff) return;
+      const labColor = r.diff ? '#111' : '#999';
+      let tds = '<td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;font-size:12px;color:#666;">' + cmpEsc(label) +
+        (r.diff ? ' <span style="color:#00843D;">•</span>' : '') + '</td>';
+      r.vals.forEach((v, i) => {
+        const win = r.best === i;
+        tds += '<td style="padding:9px 8px;border-bottom:1px solid #f0f0f0;font-size:13px;color:' + labColor + ';' +
+          (win ? 'background:#eaf6ee;font-weight:600;' : '') + '">' + cmpEsc(v) + (win ? ' ✓' : '') + '</td>';
+      });
+      bodyRows += '<tr>' + tds + '</tr>';
+    });
+    if (!bodyRows) bodyRows = '<tr><td colspan="' + (products.length + 1) + '" style="padding:12px;color:#999;font-size:13px;">Nessuna differenza tra i prodotti selezionati.</td></tr>';
+    panel.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 4px;">' +
+      '<span style="font-size:14px;font-weight:600;color:#111;">Confronto (' + products.length + ')</span>' +
+      '<span style="display:flex;align-items:center;gap:12px;">' +
+      '<label style="font-size:12px;color:#666;cursor:pointer;display:flex;align-items:center;gap:5px;"><input type="checkbox" id="cmp-onlydiff"' + (onlyDiff ? ' checked' : '') + '> Solo differenze</label>' +
+      '<button id="cmp-close" style="border:none;background:none;color:#999;cursor:pointer;font-size:18px;line-height:1;">×‍</button>' +
+      '</span></div>' +
+      '<table style="width:100%;border-collapse:collapse;table-layout:fixed;"><thead><tr>' + head + '</tr></thead><tbody>' + bodyRows + '</tbody></table>';
+    const cb = document.getElementById('cmp-onlydiff');
+    if (cb) cb.addEventListener('change', e => { onlyDiff = e.target.checked; render(); });
+    const cl = document.getElementById('cmp-close');
+    if (cl) cl.addEventListener('click', () => { panel.classList.add('hidden'); panel.innerHTML = ''; });
+  };
+  render();
+}
+function cmpEsc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+
+// ===== COMPARE BUTTON CLICK HANDLER (F-06b: comparatore deterministico) =====
 document.getElementById('compare-toggle')?.addEventListener('click', () => {
     if (selectedProductsForCompare.length < 2) return;
-    
-    const productNames = selectedProductsForCompare.map(p => p.nome).join(' e ');
-    const compareMessage = `Confronta questi prodotti: ${productNames}`;
-    
-    addMessage(compareMessage, true);
-    sendButton.disabled = true;
-    showTypingIndicator();
-    
-    fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            message: compareMessage,
-            session_id: sessionId
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        removeTypingIndicator();
-        addMessage(data.response, false);
-        
-        if (data.comparator) {
-            const compDiv = document.createElement('div');
-            compDiv.className = 'message assistant-message';
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.innerHTML = formatComparisonTable(data.comparator);
-            compDiv.appendChild(contentDiv);
-            chatMessages.appendChild(compDiv);
-            scrollToBottom();
-        }
-        
-        // Reset selection
-        selectedProductsForCompare = [];
-        updateCompareButton();
-        updateSelectionUI();
-    })
-    .catch(error => {
-        removeTypingIndicator();
-        addMessage('Errore durante il confronto. Riprova.', false);
-        console.error('Compare error:', error);
-    })
-    .finally(() => {
-        sendButton.disabled = false;
-    });
+    openDeterministicComparison(selectedProductsForCompare.slice());
 });
 
 document.addEventListener('DOMContentLoaded', () => {
