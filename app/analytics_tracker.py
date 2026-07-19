@@ -23,10 +23,33 @@ class AnalyticsTracker:
         except Exception as e:
             print(f"❌ Analytics DB connection failed: {e}")
             self.conn = None
+
+    def _ensure_conn(self):
+        """F-07: garantisce una connessione viva; se e' caduta, riconnette.
+        Ritorna True se usabile, False altrimenti (il metodo chiamante degrada
+        come prima, senza rompere nulla)."""
+        try:
+            if self.conn is None:
+                self._connect()
+            if self.conn is None:
+                return False
+            if getattr(self.conn, 'closed', 0):
+                self._connect()
+                return self.conn is not None
+            cur = self.conn.cursor()
+            cur.execute('SELECT 1')
+            cur.close()
+            return True
+        except Exception:
+            try:
+                self._connect()
+            except Exception:
+                self.conn = None
+            return self.conn is not None
     
     def log_session_start(self, session_id, language='it', user_agent=None):
         """Log inizio sessione"""
-        if not self.conn:
+        if not self._ensure_conn():
             return False
         try:
             cur = self.conn.cursor()
@@ -49,7 +72,7 @@ class AnalyticsTracker:
     
     def log_query(self, session_id, query, language='it', query_index=None):
         """Log query utente"""
-        if not self.conn:
+        if not self._ensure_conn():
             return False
         try:
             cur = self.conn.cursor()
@@ -78,7 +101,7 @@ class AnalyticsTracker:
     def log_results(self, session_id, products_count, products_shown, product_names, 
                    categories, has_comparison, query_index=None):
         """Log risultati mostrati"""
-        if not self.conn:
+        if not self._ensure_conn():
             return False
         try:
             cur = self.conn.cursor()
@@ -109,7 +132,7 @@ class AnalyticsTracker:
     def log_product_click(self, session_id, product_name, product_id='', 
                          product_category='', language='it', query_index=None):
         """Log click su prodotto"""
-        if not self.conn:
+        if not self._ensure_conn():
             return False
         try:
             cur = self.conn.cursor()
@@ -138,7 +161,7 @@ class AnalyticsTracker:
     
     def log_error(self, session_id, error_message, error_type='Exception'):
         """Log errore"""
-        if not self.conn:
+        if not self._ensure_conn():
             return False
         try:
             cur = self.conn.cursor()
@@ -164,7 +187,7 @@ class AnalyticsTracker:
     
     def get_date_range_stats(self, start_date, end_date):
         """Statistiche aggregate per range di date"""
-        if not self.conn:
+        if not self._ensure_conn():
             return []
         
         try:
@@ -201,7 +224,7 @@ class AnalyticsTracker:
     
     def get_top_queries_range(self, start_date, end_date, limit=10):
         """Top queries per range di date"""
-        if not self.conn:
+        if not self._ensure_conn():
             return []
         
         try:
@@ -230,7 +253,7 @@ class AnalyticsTracker:
     
     def get_top_products_range(self, start_date, end_date, limit=10):
         """Top prodotti cliccati per range di date"""
-        if not self.conn:
+        if not self._ensure_conn():
             return []
         
         try:
@@ -288,7 +311,7 @@ class AnalyticsTracker:
     
     def get_top_categories_range(self, start_date, end_date, limit=10):
         """Top categorie per range di date"""
-        if not self.conn:
+        if not self._ensure_conn():
             return []
         
         try:
@@ -317,7 +340,7 @@ class AnalyticsTracker:
     
     def get_conversations_in_range(self, start_date, end_date):
         """Conversazioni complete per range di date"""
-        if not self.conn:
+        if not self._ensure_conn():
             return []
         
         try:
@@ -361,7 +384,7 @@ class AnalyticsTracker:
     
     def get_session_ctr(self, session_id):
         """CTR per singola sessione"""
-        if not self.conn:
+        if not self._ensure_conn():
             return 0.0
         
         try:
@@ -388,7 +411,7 @@ class AnalyticsTracker:
     
     def get_click_through_rate(self, start_date, end_date):
         """CTR globale per range di date"""
-        if not self.conn:
+        if not self._ensure_conn():
             return 0.0
         
         try:
