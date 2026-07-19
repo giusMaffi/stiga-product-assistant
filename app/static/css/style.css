@@ -719,3 +719,10 @@ header {
     transform: translateY(0);
     box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
 }
+
+/* ===== F-31 delimitazione zone + F-32 sticky (18/07) ===== */
+.product-display-column { background: #ffffff; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.chat-messages { background: #e9edf1; }
+.chat-column { border-right: 1px solid #c7ced5; box-shadow: 3px 0 8px rgba(0,33,54,0.06); }
+.product-display-header { border-bottom: 2px solid #d7dce1; background: #fbfcfd; }
+#comparison-panel { border-top: 4px solid var(--stiga-orange); box-shadow: 0 -3px 14px rgba(0,33,54,0.10); overflow: visible; }
