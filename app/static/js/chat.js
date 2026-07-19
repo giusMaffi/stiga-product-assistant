@@ -605,7 +605,7 @@ async function openDeterministicComparison(selected) {
   const panel = document.getElementById('comparison-panel');
   if (!panel) return;
   panel.classList.remove('hidden');
-  panel.style.cssText = 'display:block;width:100%;margin:0;background:#fff;';
+  panel.style.cssText = 'display:block;width:100%;margin:0;background:#f4f6f8;overflow:visible;';
   panel.innerHTML = '<p style="padding:16px;color:#666;font-size:14px;">Preparo il confronto…</p>';
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   let full;
@@ -650,10 +650,10 @@ function cmpRenderPanel(panel, products) {
     sections.forEach(sec => {
       const rows = sec[1].filter(l => !onlyDiff || cmpRow(l, specSets).diff);
       if (!rows.length) return;
-      html += '<div style="padding:9px 16px;background:#f7f7f5;font-size:12px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:.03em;">' + cmpEsc(sec[0]) + '</div>';
+      html += '<div style="padding:9px 16px 9px 12px;background:#e7edf2;font-size:12px;font-weight:600;color:#002136;text-transform:uppercase;letter-spacing:.03em;border-left:4px solid #FFAA00;">' + cmpEsc(sec[0]) + '</div>';
       rows.forEach(label => {
         const r = cmpRow(label, specSets);
-        html += '<div style="display:grid;grid-template-columns:' + cols() + ';border-bottom:1px solid #f2f2f2;">';
+        html += '<div style="display:grid;grid-template-columns:' + cols() + ';border-bottom:1px solid #f2f2f2;background:#fff;">';
         html += '<div style="padding:11px 16px;font-size:13px;color:#666;">' + cmpEsc(label) + '</div>';
         r.vals.forEach((v, i) => {
           const win = r.best === i;
