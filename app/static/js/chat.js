@@ -512,6 +512,9 @@ document.getElementById('language-selector').addEventListener('change', (e) => {
 const CMP_BLACKLIST = ['ean', 'upc', 'sku', 'gtin', 'codice', 'barcode'];
 const CMP_HIGHER_BETTER = ['area di taglio', 'capacità batteria', 'capacita batteria', 'potenza', 'autonomia', 'tempo massimo di taglio', 'capacità sacco', 'capacita sacco', 'cilindrata'];
 const CMP_LOWER_BETTER = ['peso', 'tempo di ricarica', 'livello', 'rumore', 'emission'];
+// Tick "migliore" DORMIENTE: senza le domande del cliente decidere cosa e' meglio e' arbitrario.
+// Riattivare (metti true) quando la Fase 2 AI-orchestrante contestualizza il vincitore.
+const CMP_SHOW_WINNER = false;
 const CMP_SECTIONS = {
   'Robot tagliaerba': [
     ['Prestazioni', ['Area di taglio fino a', 'Larghezza di taglio', 'Pendenza massima', 'Altezze di taglio', 'Altezza di taglio per zona', 'Gestione zone di taglio']],
@@ -656,7 +659,7 @@ function cmpRenderPanel(panel, products) {
         html += '<div style="display:grid;grid-template-columns:' + cols() + ';border-bottom:1px solid #f2f2f2;background:#fff;">';
         html += '<div style="padding:11px 16px;font-size:13px;color:#666;">' + cmpEsc(label) + '</div>';
         r.vals.forEach((v, i) => {
-          const win = r.best === i;
+          const win = CMP_SHOW_WINNER && r.best === i;
           html += '<div style="padding:11px 12px;border-left:1px solid #f0f0f0;font-size:14px;' + (win ? 'background:#eaf6ee;color:#0f6e56;font-weight:600;' : 'color:#222;') + '">' + cmpEsc(v) + (win ? ' ✓' : '') + '</div>';
         });
         html += '</div>';
