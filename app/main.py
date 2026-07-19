@@ -25,6 +25,7 @@ from src.api import ClaudeClient
 from src.config import PORT, FLASK_DEBUG
 from app.analytics_tracker import get_tracker
 from app.analytics_routes import analytics_bp
+from app.session_store import get_session as _get_session, save_session as _save_session
 
 app = Flask(__name__)
 CORS(app)
@@ -549,14 +550,8 @@ def chat():
     
     try:
         # 1. Recupera storia conversazione
-        if session_id not in conversations:
-            conversations[session_id] = {
-                'history': [],
-                'last_products': [],
-                'last_products_data': []
-            }
-        
-        history = conversations[session_id]['history']
+        session = _get_session(session_id)
+        history = session['history']
         
         # 2. Rileva richiesta di confronto con prodotti precedenti
         confronto_keywords = ['confronta', 'confrontali', 'confronto', 'mettili a confronto', 
@@ -565,18 +560,18 @@ def chat():
         is_confronto = any(kw in user_message.lower() for kw in confronto_keywords)
         use_previous_products = False
         
-        if is_confronto and conversations[session_id].get('last_products'):
+        if is_confronto and session.get('last_products'):
             # Verifica se l'utente si riferisce ai prodotti precedenti
             # (non specifica nuovi modelli nella richiesta)
             new_model_match = MODELLO_PATTERN.search(user_message)
             if not new_model_match:
                 use_previous_products = True
-                print(f"🔄 Confronto richiesto - uso prodotti precedenti: {conversations[session_id]['last_products']}")
+                print(f"🔄 Confronto richiesto - uso prodotti precedenti: {session['last_products']}")
         # F-26: follow-up senza nuove info -> riusa i prodotti precedenti ed evita la deriva.
         # Guardia (fix refuso 'taglierba'): NON riusare se e' una richiesta di catalogo/browse
         # o se cita una categoria (anche con refusi) -> altrimenti resta appeso ai prodotti confrontati.
         _msg_low = user_message.lower()
-        if (not use_previous_products and conversations[session_id].get('last_products')
+        if (not use_previous_products and session.get('last_products')
                 and not MODELLO_PATTERN.search(user_message)
                 and not extract_categoria([{'role': 'user', 'content': user_message}])
                 and not DIMENSIONI_PATTERN.search(user_message)
@@ -597,7 +592,7 @@ def chat():
         if use_previous_products:
             # Usa i prodotti mostrati in precedenza per il confronto
             reranked = []
-            for pid in conversations[session_id]['last_products']:
+            for pid in session['last_products']:
                 product = retriever.get_product_by_id(pid)
                 if product:
                     reranked.append((product, 1.0, ['confronto_richiesto']))
@@ -672,18 +667,21 @@ def chat():
         print(f"🏷️  Prodotti selezionati da Claude: {selected_product_ids}")
         
         # 9. Aggiorna storia (salva solo testo pulito)
-        conversations[session_id]['history'].append({
+        session['history'].append({
             'role': 'user',
             'content': user_message
         })
-        conversations[session_id]['history'].append({
+        session['history'].append({
             'role': 'assistant',
             'content': response_text
         })
         
         # 10. Salva i prodotti mostrati per confronti futuri
         if selected_product_ids:
-            conversations[session_id]['last_products'] = selected_product_ids
+            session['last_products'] = selected_product_ids
+
+        # F-02: persisti lo stato sessione (Postgres con fallback in memoria)
+        _save_session(session_id, session)
         
         # 11. Prepara prodotti per il frontend (SOLO quelli selezionati da Claude)
         products_data = []
