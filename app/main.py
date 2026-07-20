@@ -789,7 +789,7 @@ def chat():
             'error': str(e)
         }, ensure_ascii=False))
         
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Errore interno del server'}), 500
 
 
 @app.route('/api/track/click', methods=['POST'])
@@ -823,7 +823,7 @@ def track_product_click():
             return jsonify({'status': 'error'}), 503
     except Exception as e:
         print(f"❌ Track click error: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Errore interno del server'}), 500
 
 @app.route('/api/track/session', methods=['POST'])
 @auth.login_required
@@ -848,7 +848,7 @@ def track_session_start():
         return jsonify({'status': 'ok'})
     except Exception as e:
         print(f"❌ Track session error: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Errore interno del server'}), 500
 
 @app.route('/api/categories', methods=['GET'])
 @auth.login_required
