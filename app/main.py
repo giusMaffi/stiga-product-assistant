@@ -26,6 +26,7 @@ from src.config import PORT, FLASK_DEBUG
 from app.analytics_tracker import get_tracker
 from app.analytics_routes import analytics_bp
 from app.session_store import get_session as _get_session, save_session as _save_session
+from app.guardrail import evaluate_scope, SCOPE_BLOCK_MSG, SCOPE_DEFLECT_MSG
 
 app = Flask(__name__)
 CORS(app)
@@ -634,6 +635,22 @@ def chat():
             print(f"🔍 DEBUG detected_category MAPPED: {detected_category}")
         show_all = detect_show_all_intent(user_message, detected_category)
         products_limit = 20 if show_all else 10
+
+        # F-33 Guardrail scope: blocca il fuori-tema PRIMA di generare (nessuna chiamata al modello per l'off-topic)
+        _scope = evaluate_scope(
+            user_message, detected_category_raw, use_previous_products,
+            bool(MODELLO_PATTERN.search(user_message)), claude.classify_scope
+        )
+        if _scope != 'ok':
+            _canned = SCOPE_BLOCK_MSG if _scope == 'block' else SCOPE_DEFLECT_MSG
+            print(f"\U0001F6E1 F-33 scope={_scope} -> risposta canned, nessuna generazione")
+            session['history'].append({'role': 'user', 'content': user_message})
+            session['history'].append({'role': 'assistant', 'content': _canned})
+            _save_session(session_id, session)
+            return jsonify({
+                'response': _canned, 'products': [], 'comparator': None,
+                'total_count': 0, 'category': None, 'show_all': False
+            })
         
         print(f"🎯 Top 10 dopo re-ranking:")
         for i, (prod, score, reasons) in enumerate(reranked[:products_limit], 1):
