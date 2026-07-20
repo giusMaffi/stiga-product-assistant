@@ -163,11 +163,22 @@ const userInput = document.getElementById('user-input');
 const sendButton = document.getElementById('send-button');
 const sessionId = 'session_' + Date.now();
 
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function safeUrl(u) {
+    const s = String(u == null ? '' : u).trim();
+    return /^(https?:\/\/|\/|mailto:)/i.test(s) ? s : '#';
+}
+
 function formatMarkdown(text) {
+    text = escapeHtml(text);
     text = text.replace(/  +/g, ' ');
     text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     text = text.replace(/\*([^\*\|]+?)\*/g, '<em>$1</em>');
-    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(m, t, u) { return '<a href="' + safeUrl(u) + '" target="_blank" rel="noopener">' + t + '</a>'; });
     const tableRegex = /\|(.+)\|[\r\n]+\|[-:\| ]+\|[\r\n]+((?:\|.+\|[\r\n]*)+)/g;
     text = text.replace(tableRegex, function(match, headerRow, bodyRows) {
         const headers = headerRow.split('|').map(h => h.trim()).filter(h => h);
@@ -228,7 +239,7 @@ function addMessage(content, isUser = false) {
     if (!isUser) {
         contentDiv.innerHTML = formatMarkdown(content);
     } else {
-        contentDiv.innerHTML = content;
+        contentDiv.textContent = content;
     }
     messageDiv.appendChild(contentDiv);
     chatMessages.appendChild(messageDiv);
@@ -311,7 +322,7 @@ function formatProductCards(products) {
                     ${product.categoria ? `<div class="product-category">${product.categoria}</div>` : ''}
                     <div class="product-description">${desc}</div>
                     ${product.prezzo ? `<div class="product-price">${product.prezzo}</div>` : ''}
-                    <a href="${product.url}" target="_blank" class="product-link" onclick="trackProductClick('${product.id || ''}', '${product.nome.replace(/'/g, "\\'")}', '${product.categoria || ''}'); return true;">
+                    <a href="${safeUrl(product.url)}" target="_blank" class="product-link" onclick="trackProductClick('${product.id || ''}', '${product.nome.replace(/'/g, "\\'")}', '${product.categoria || ''}'); return true;">
                         Scopri tutti i dettagli →
                     </a>
                 </div>
@@ -370,7 +381,7 @@ function formatProductCardsMinimal(products) {
                     ${product.categoria ? `<div class="product-category">${product.categoria}</div>` : ''}
                     <div class="product-description">${briefDesc}</div>
                     ${product.prezzo ? `<div class="product-price">${product.prezzo}</div>` : ''}
-                    <a href="${product.url}" target="_blank" class="product-link" onclick="event.stopPropagation(); trackProductClick('${product.id || ''}', '${product.nome.replace(/'/g, "\\'")}', '${product.categoria || ''}'); return true;">
+                    <a href="${safeUrl(product.url)}" target="_blank" class="product-link" onclick="event.stopPropagation(); trackProductClick('${product.id || ''}', '${product.nome.replace(/'/g, "\\'")}', '${product.categoria || ''}'); return true;">
                         Vedi dettagli →
                     </a>
                 </div>
