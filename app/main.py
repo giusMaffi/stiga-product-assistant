@@ -28,6 +28,9 @@ from app.analytics_routes import analytics_bp
 from app.session_store import get_session as _get_session, save_session as _save_session
 from app.guardrail import evaluate_scope, SCOPE_BLOCK_MSG, SCOPE_DEFLECT_MSG
 
+# Fase 1 orchestrante: apertura automatica del confronto deterministico (feature flag, default ON)
+ORCHESTRATE_COMPARISON = os.getenv('ORCHESTRATE_COMPARISON', '1').lower() not in ('0', 'false', 'off', 'no')
+
 app = Flask(__name__)
 CORS(app)
 
@@ -777,13 +780,20 @@ def chat():
             has_comparison=(comparator_data is not None)
         )
         
+        # Fase 1 orchestrante: se intento di confronto e 2-3 prodotti mostrati, apri il comparatore deterministico
+        _action = None
+        if ORCHESTRATE_COMPARISON and is_confronto and 2 <= len(products_data) <= 3:
+            _action = {'type': 'confronta', 'products': [{'id': p['id']} for p in products_data]}
+            print(f"\U0001F9ED Fase1 orchestrante: confronto deterministico su {len(products_data)} prodotti")
+
         return jsonify({
             'response': response_text,
             'products': products_data,
             'comparator': comparator_data,
             'total_count': len(reranked) if reranked else 0,
             'category': detected_category,
-            'show_all': show_all
+            'show_all': show_all,
+            'action': _action
         })
         
     except Exception as e:
