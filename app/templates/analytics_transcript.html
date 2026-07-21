@@ -127,6 +127,14 @@
     </div>
 
     <script>
+        // F-22: escaping di ogni valore dinamico prima di finire in innerHTML.
+        // I transcript contengono testo digitato dagli utenti (query, ecc.): senza
+        // escape un payload come <img onerror> verrebbe eseguito nel browser dell'admin
+        // che apre la conversazione (stored XSS). esc() neutralizza i caratteri HTML.
+        const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+
         const transcript = {{ transcript | tojson }};
         const container = document.getElementById('transcriptEvents');
 
@@ -144,37 +152,37 @@
 
                 if (event.event_type === 'query') {
                     const query = event.data.query || 'N/A';
-                    contentHTML = `<div class="event-query">"${query}"</div>`;
+                    contentHTML = `<div class="event-query">"${esc(query)}"</div>`;
                 } else if (event.event_type === 'results') {
                     const count = event.data.products_count || 0;
                     const products = event.data.product_names || [];
                     contentHTML = `
-                        <div style="margin-bottom: 0.5rem;">Showed ${count} products:</div>
+                        <div style="margin-bottom: 0.5rem;">Showed ${esc(count)} products:</div>
                         <div class="event-results">
-                            ${products.map(p => `<div class="product-chip">${p}</div>`).join('')}
+                            ${products.map(p => `<div class="product-chip">${esc(p)}</div>`).join('')}
                         </div>
                     `;
                 } else if (event.event_type === 'product_click') {
                     const productName = event.data.product_name || 'Unknown';
                     contentHTML = `
                         <div class="product-chip product-clicked" style="display: inline-block;">
-                            ✅ Clicked: ${productName}
+                            ✅ Clicked: ${esc(productName)}
                         </div>
                     `;
                 } else if (event.event_type === 'session_start') {
                     const language = event.data.language || 'unknown';
-                    contentHTML = `<div>Language: ${language}</div>`;
+                    contentHTML = `<div>Language: ${esc(language)}</div>`;
                 } else if (event.event_type === 'error') {
                     const errorMsg = event.data.error_message || 'Unknown error';
-                    contentHTML = `<div style="color: #ff4444;">${errorMsg}</div>`;
+                    contentHTML = `<div style="color: #ff4444;">${esc(errorMsg)}</div>`;
                 } else {
                     contentHTML = `<div style="color: #666;">Event data not displayed</div>`;
                 }
 
                 eventDiv.innerHTML = `
                     <div class="event-header">
-                        <span class="event-type">${event.event_type}</span>
-                        <span class="event-timestamp">${timeStr}</span>
+                        <span class="event-type">${esc(event.event_type)}</span>
+                        <span class="event-timestamp">${esc(timeStr)}</span>
                     </div>
                     <div class="event-content">
                         ${contentHTML}
