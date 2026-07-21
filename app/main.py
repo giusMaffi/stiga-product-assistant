@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 import json
 import re
+import difflib
 from typing import List, Dict, Optional
 from sklearn.metrics.pairwise import cosine_similarity
 import logging
@@ -131,6 +132,39 @@ DIMENSIONI_PATTERN = re.compile(r'(\d+)\s*(?:m²|mq|metri|metro)', re.IGNORECASE
 ALIMENTAZIONE_PATTERN = re.compile(r'\b(elettric[oa]|batteria|benzina|scoppio)\b', re.IGNORECASE)
 
 
+# F-25: vocabolario per il match tollerante ai refusi (parola -> chiave categoria di CATEGORIA_PATTERNS)
+_FUZZY_CAT = {
+    'tagliaerba': 'tagliaerba', 'tagliaerbe': 'tagliaerba',
+    'trattorino': 'trattorino', 'trattorini': 'trattorino',
+    'decespugliatore': 'decespugliatore', 'decespugliatori': 'decespugliatore',
+    'motosega': 'motosega', 'motoseghe': 'motosega',
+    'idropulitrice': 'idropulitrice', 'idropulitrici': 'idropulitrice',
+    'spazzaneve': 'spazzaneve',
+    'biotrituratore': 'biotrituratore',
+    'motozappa': 'motozappa', 'motozappe': 'motozappa',
+    'soffiatore': 'soffiatore', 'soffiatori': 'soffiatore',
+    'tagliasiepi': 'tagliasiepi',
+    'forbici': 'forbici', 'cesoie': 'forbici',
+    'arieggiatore': 'arieggiatore', 'scarificatore': 'arieggiatore',
+    'robot': 'robot tagliaerba',
+}
+_FUZZY_KEYS = list(_FUZZY_CAT.keys())
+
+
+def _fuzzy_categoria(text: str) -> Optional[str]:
+    """F-25: riconosce la categoria anche con refusi (es. 'taglierba' -> 'tagliaerba').
+    Match per token contro il vocabolario categorie, con soglia alta per evitare falsi positivi."""
+    if not text:
+        return None
+    for w in re.findall(r'[a-zA-Z\u00e0\u00e8\u00e9\u00ec\u00f2\u00f9]+', text.lower()):
+        if len(w) < 5:
+            continue
+        match = difflib.get_close_matches(w, _FUZZY_KEYS, n=1, cutoff=0.82)
+        if match:
+            return _FUZZY_CAT[match[0]]
+    return None
+
+
 def extract_categoria(messages: List[Dict]) -> Optional[str]:
     """Estrae categoria prodotto - PRIORITÀ a messaggi più recenti"""
     # Prima controlla SOLO l'ultimo messaggio (quello corrente)
@@ -148,7 +182,14 @@ def extract_categoria(messages: List[Dict]) -> Optional[str]:
             if pattern.search(content):
                 print(f"🔍 Categoria trovata nella storia: {cat}")
                 return cat
-    
+
+    # F-25: fallback tollerante ai refusi sull'ultimo messaggio (es. "taglierba")
+    if messages:
+        _fz = _fuzzy_categoria(messages[-1].get('content', ''))
+        if _fz:
+            print(f"\U0001FA79 F-25 categoria fuzzy (refuso): {_fz}")
+            return _fz
+
     return None
 
 
