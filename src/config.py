@@ -39,7 +39,7 @@ EMBEDDINGS_FILE = EMBEDDINGS_DIR / "products_embeddings.pkl"
 
 # Flask Configuration
 FLASK_ENV = os.getenv("FLASK_ENV", "development")
-FLASK_DEBUG = os.getenv("FLASK_DEBUG", "True").lower() == "true"
+FLASK_DEBUG = os.getenv("FLASK_DEBUG", "False").lower() == "true"
 PORT = int(os.getenv("PORT", "8000"))
 
 # System Prompt per Claude
