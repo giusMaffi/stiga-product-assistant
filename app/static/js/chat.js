@@ -500,6 +500,11 @@ chatForm.addEventListener('submit', async (e) => {
             updateProductDisplay(data.products);
             renderShowAllButton(data);  // ← Show "Mostra tutti" button
         }
+
+        // Fase 1 orchestrante: se il backend lo richiede, apri il confronto deterministico
+        if (data.action && data.action.type === 'confronta' && Array.isArray(data.action.products) && data.action.products.length >= 2) {
+            openDeterministicComparison(data.action.products);
+        }
         
     } catch (error) {
         removeTypingIndicator();
