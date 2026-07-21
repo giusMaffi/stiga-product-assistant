@@ -81,6 +81,7 @@ app.register_blueprint(analytics_bp)
 # Pattern precompilati per massima performance
 CATEGORIA_PATTERNS = {
     'robot tagliaerba': re.compile(r'\brobot\b.*\btagliaerba\b|\btagliaerba\b.*\brobot\b', re.IGNORECASE),
+    'robot': re.compile(r'\brobot\b', re.IGNORECASE),
     'trattorino': re.compile(r'\btrattorino\b|\btrattorini\b', re.IGNORECASE),
     'tagliaerba': re.compile(r'\btagliaerba\b', re.IGNORECASE),
     'decespugliatore': re.compile(r'\bdecespugliator[ei]\b|\btagliabordi\b', re.IGNORECASE),
@@ -132,63 +133,70 @@ DIMENSIONI_PATTERN = re.compile(r'(\d+)\s*(?:m²|mq|metri|metro)', re.IGNORECASE
 ALIMENTAZIONE_PATTERN = re.compile(r'\b(elettric[oa]|batteria|benzina|scoppio)\b', re.IGNORECASE)
 
 
-# F-25: vocabolario per il match tollerante ai refusi (parola -> chiave categoria di CATEGORIA_PATTERNS)
-_FUZZY_CAT = {
-    'tagliaerba': 'tagliaerba', 'tagliaerbe': 'tagliaerba',
-    'trattorino': 'trattorino', 'trattorini': 'trattorino',
-    'decespugliatore': 'decespugliatore', 'decespugliatori': 'decespugliatore',
-    'motosega': 'motosega', 'motoseghe': 'motosega',
-    'idropulitrice': 'idropulitrice', 'idropulitrici': 'idropulitrice',
-    'spazzaneve': 'spazzaneve',
-    'biotrituratore': 'biotrituratore',
-    'motozappa': 'motozappa', 'motozappe': 'motozappa',
-    'soffiatore': 'soffiatore', 'soffiatori': 'soffiatore',
-    'tagliasiepi': 'tagliasiepi',
-    'forbici': 'forbici', 'cesoie': 'forbici',
-    'arieggiatore': 'arieggiatore', 'scarificatore': 'arieggiatore',
-    'robot': 'robot tagliaerba',
+# F-25 v2: tolleranza refusi con "normalizza-poi-match".
+# Prima si correggono i refusi token-per-token verso le parole-bersaglio delle regex,
+# POI si applica CATEGORIA_PATTERNS. Cosi' l'ordine di priorita' (robot tagliaerba >
+# robot > tagliaerba) resta valido anche con errori di battitura: es. "robto tagliaerba"
+# viene normalizzato in "robot tagliaerba" e riconosciuto come robot, non come tagliaerba.
+_REFUSI_VOCAB = {
+    'robot', 'tagliaerba', 'tagliasiepi', 'tagliabordi',
+    'trattorino', 'trattorini',
+    'decespugliatore', 'decespugliatori',
+    'motosega', 'motoseghe',
+    'idropulitrice', 'idropulitrici',
+    'spazzaneve', 'biotrituratore',
+    'motozappa', 'motozappe', 'spazzatrice', 'spazzatrici',
+    'soffiatore', 'soffiatori', 'aspiratore', 'aspiratori',
+    'forbici', 'cesoie',
+    'arieggiatore', 'scarificatore',
 }
-_FUZZY_KEYS = list(_FUZZY_CAT.keys())
+_REFUSI_VOCAB_LIST = list(_REFUSI_VOCAB)
+
+# Nomi modello STIGA: non vanno mai "corretti" verso una categoria.
+_MODEL_WORDS = {
+    'swift', 'estate', 'tornado', 'combi', 'multiclip', 'twinclip',
+    'collector', 'villa', 'royal', 'garden', 'compact', 'experience',
+}
+
+_REFUSI_TOKEN = re.compile(r'[A-Za-z\u00e0\u00e8\u00e9\u00ec\u00f2\u00f9]{5,}')
 
 
-def _fuzzy_categoria(text: str) -> Optional[str]:
-    """F-25: riconosce la categoria anche con refusi (es. 'taglierba' -> 'tagliaerba').
-    Match per token contro il vocabolario categorie, con soglia alta per evitare falsi positivi."""
+def _normalizza_refusi(text: str) -> str:
+    """F-25 v2: corregge i refusi verso il vocabolario categorie prima del match regex.
+    Conservativo: solo run di >=5 lettere (i codici modello con cifre restano intatti),
+    salta parole gia' esatte e nomi modello noti, soglia 0.80 (tarata: cattura le
+    trasposizioni tipo 'robto' senza falsi positivi su parole italiane comuni)."""
     if not text:
-        return None
-    for w in re.findall(r'[a-zA-Z\u00e0\u00e8\u00e9\u00ec\u00f2\u00f9]+', text.lower()):
-        if len(w) < 5:
-            continue
-        match = difflib.get_close_matches(w, _FUZZY_KEYS, n=1, cutoff=0.82)
-        if match:
-            return _FUZZY_CAT[match[0]]
-    return None
+        return text
+
+    def _fix(m):
+        w = m.group(0)
+        lw = w.lower()
+        if lw in _REFUSI_VOCAB or lw in _MODEL_WORDS:
+            return w
+        cand = difflib.get_close_matches(lw, _REFUSI_VOCAB_LIST, n=1, cutoff=0.80)
+        return cand[0] if cand else w
+
+    return _REFUSI_TOKEN.sub(_fix, text)
 
 
 def extract_categoria(messages: List[Dict]) -> Optional[str]:
-    """Estrae categoria prodotto - PRIORITÀ a messaggi più recenti"""
-    # Prima controlla SOLO l'ultimo messaggio (quello corrente)
+    """Estrae categoria prodotto - PRIORITA' a messaggi piu' recenti (tollerante ai refusi)."""
+    # Prima controlla SOLO l'ultimo messaggio (quello corrente), normalizzato
     if messages:
-        last_msg = messages[-1].get('content', '')
+        last_norm = _normalizza_refusi(messages[-1].get('content', ''))
         for cat, pattern in CATEGORIA_PATTERNS.items():
-            if pattern.search(last_msg):
-                print(f"🎯 Categoria trovata nel messaggio corrente: {cat}")
-                return cat
-    
-    # Se non trovata nel corrente, cerca nella storia recente (ultimi 3 messaggi)
-    for msg in reversed(messages[-3:] if len(messages) > 3 else messages):
-        content = msg.get('content', '')
-        for cat, pattern in CATEGORIA_PATTERNS.items():
-            if pattern.search(content):
-                print(f"🔍 Categoria trovata nella storia: {cat}")
+            if pattern.search(last_norm):
+                print(f"CAT (corrente): {cat}")
                 return cat
 
-    # F-25: fallback tollerante ai refusi sull'ultimo messaggio (es. "taglierba")
-    if messages:
-        _fz = _fuzzy_categoria(messages[-1].get('content', ''))
-        if _fz:
-            print(f"\U0001FA79 F-25 categoria fuzzy (refuso): {_fz}")
-            return _fz
+    # Se non trovata nel corrente, cerca nella storia recente (ultimi 3 messaggi)
+    for msg in reversed(messages[-3:] if len(messages) > 3 else messages):
+        content = _normalizza_refusi(msg.get('content', ''))
+        for cat, pattern in CATEGORIA_PATTERNS.items():
+            if pattern.search(content):
+                print(f"CAT (storia): {cat}")
+                return cat
 
     return None
 
