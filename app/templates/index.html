@@ -78,15 +78,20 @@
                     <p class="empty-state">I prodotti appariranno qui quando inizi a chattare</p>
                 </div>
 
-                <!-- Comparison Panel (hidden by default) -->
-                <div id="comparison-panel" class="comparison-panel hidden">
-                    <!-- Popolato da JS quando user clicca compare -->
-                </div>
             </div>
 
         </div>
         <!-- ===== END Split Container ===== -->
 
+    </div>
+
+    <!-- ===== COMPARISON PANEL =====
+         FUORI da .container di proposito: .container e' height:100vh + overflow:hidden,
+         quindi un pannello annidato resterebbe largo quanto la colonna prodotti (60%)
+         e non potrebbe scorrere con la pagina. Qui e' full-width e la sticky
+         dell'header confronto si aggancia alla finestra (F-32). -->
+    <div id="comparison-panel" class="comparison-panel hidden">
+        <!-- Popolato da JS quando user clicca compare -->
     </div>
 
     <script src="{{ asset('js/chat.js') }}"></script>
