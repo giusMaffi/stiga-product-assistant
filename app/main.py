@@ -2,7 +2,7 @@
 Flask App - Stiga Product Assistant
 Production-Ready con Query Enrichment Hybrid + Fix Descrizioni + Comparatore + Widget + Analytics + HTTP Basic Auth + STREAMING SSE
 """
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, url_for
 from flask_cors import CORS
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -34,6 +34,20 @@ ORCHESTRATE_COMPARISON = os.getenv('ORCHESTRATE_COMPARISON', '1').lower() not in
 
 app = Flask(__name__)
 CORS(app)
+
+
+# Cache-busting statici: appende la mtime del file come ?v=, così il browser
+# riscarica JS/CSS solo quando cambiano davvero. Chiude la classe di bug
+# "a me funziona, a te no" causata da chat.js vecchio in cache dopo un deploy.
+@app.context_processor
+def _inject_asset_helper():
+    def asset(filename):
+        try:
+            v = int(os.path.getmtime(os.path.join(app.static_folder, filename)))
+        except OSError:
+            v = 0
+        return url_for('static', filename=filename, v=v)
+    return {'asset': asset}
 
 # Setup HTTP Basic Authentication
 auth = HTTPBasicAuth()

@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STIGA Product Assistant</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    
+    <link rel="stylesheet" href="{{ asset('css/style.css') }}">
+
 </head>
 <body>
     <div class="container">
@@ -31,7 +31,7 @@
 
         <!-- ===== NUOVO: Split Container 40/60 ===== -->
         <div class="main-split-container">
-            
+
             <!-- ===== COLONNA CHAT (40%) ===== -->
             <div class="chat-column">
                 <!-- CHAT CONTAINER (stesso contenuto di prima, solo wrappato) -->
@@ -49,10 +49,10 @@
                     <!-- INPUT AREA -->
                     <div class="chat-input-container">
                         <form id="chat-form">
-                            <input 
-                                type="text" 
-                                id="user-input" 
-                                placeholder="Scrivi qui la tua domanda..." 
+                            <input
+                                type="text"
+                                id="user-input"
+                                placeholder="Scrivi qui la tua domanda..."
                                 autocomplete="off"
                             >
                             <button type="submit" id="send-button">
@@ -77,6 +77,11 @@
                 <div id="product-carousel" class="product-carousel">
                     <p class="empty-state">I prodotti appariranno qui quando inizi a chattare</p>
                 </div>
+
+                <!-- Comparison Panel (hidden by default) -->
+                <div id="comparison-panel" class="comparison-panel hidden">
+                    <!-- Popolato da JS quando user clicca compare -->
+                </div>
             </div>
 
         </div>
@@ -84,9 +89,6 @@
 
     </div>
 
-    <!-- Comparison Panel full-width, FUORI dal container 100vh per permettere lo scroll (F-06b UI3) -->
-    <div id="comparison-panel" class="comparison-panel hidden"></div>
-
-    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+    <script src="{{ asset('js/chat.js') }}"></script>
 </body>
 </html>
