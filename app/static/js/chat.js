@@ -620,21 +620,47 @@ function cmpEsc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// H-CMP-SCROLL: porta il pannello confronto in vista DOPO che il contenuto e' stato
+// renderizzato. Tre cose scoperte testando dal vivo, tutte necessarie:
+//  1) Lo scroll fatto PRIMA del fetch non funzionava: la tabella arriva dopo e la
+//     pagina non e' ancora abbastanza alta per scorrere, quindi scrollIntoView non
+//     faceva nulla e l'utente restava sulla chat (il confronto sembrava non aprirsi).
+//  2) Serve ritentare: al primo tentativo l'altezza del documento puo' non essere
+//     ancora cresciuta (la chat sta ancora renderizzando la risposta).
+//  3) NIENTE behavior:'smooth' qui: ogni nuovo scroll annulla l'animazione del
+//     precedente, quindi coi ritentativi non arrivava mai a destinazione.
+//     Verificato in produzione: con smooth restava a scrollY=0 dopo 12 tentativi,
+//     senza smooth arriva a destinazione in 2.
+function cmpScrollIntoView(panel) {
+  let tentativi = 0;
+  (function prova() {
+    tentativi++;
+    // gia' in vista: basta cosi'
+    if (panel.getBoundingClientRect().top < window.innerHeight * 0.9) return;
+    // scorri solo se la pagina ha effettivamente spazio di scroll
+    if (document.documentElement.scrollHeight - window.innerHeight > 0) {
+      panel.scrollIntoView({ block: 'start' });
+    }
+    if (tentativi < 12) setTimeout(prova, 150);
+  })();
+}
+
 async function openDeterministicComparison(selected) {
   const panel = document.getElementById('comparison-panel');
   if (!panel) return;
   panel.classList.remove('hidden');
   panel.style.cssText = 'display:block;width:100%;margin:0;background:#f4f6f8;overflow:visible;';
   panel.innerHTML = '<p style="padding:16px;color:#666;font-size:14px;">Preparo il confronto…</p>';
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   let full;
   try {
     full = await Promise.all(selected.map(p => fetch('/api/product/' + encodeURIComponent(p.id)).then(r => r.json())));
   } catch (e) {
     panel.innerHTML = '<p style="padding:16px;color:#b00;font-size:14px;">Errore nel recupero delle schede. Riprova.</p>';
+    cmpScrollIntoView(panel);
     return;
   }
   cmpRenderPanel(panel, full);
+  cmpScrollIntoView(panel);
 }
 
 function cmpRenderPanel(panel, products) {
